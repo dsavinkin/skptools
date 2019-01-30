@@ -119,6 +119,10 @@ int write_new_model()
     SUEntitiesAddFaces(entities, 1, &face);
     // Save the in-memory model to a file
     SUModelSaveToFile(model, "new_model.skp");
+    SUModelSaveToFileWithVersion(model, "new_model_SU2017.skp", SUModelVersion_SU2017);
+    SUModelSaveToFileWithVersion(model, "new_model_SU2016.skp", SUModelVersion_SU2016);
+    SUModelSaveToFileWithVersion(model, "new_model_SU3.skp", SUModelVersion_SU3); //oldest
+
     // Must release the model or there will be memory leaks
     SUModelRelease(&model);
     // Always terminate the API when done using it
@@ -265,6 +269,8 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
             break;
         }
     }
+
+    write_new_model();
 
 CleanUp:
     SAFE_RELEASE(pFileStream);
