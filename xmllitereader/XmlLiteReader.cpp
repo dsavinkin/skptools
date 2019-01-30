@@ -54,6 +54,13 @@ typedef enum {
     SIDE_BACK
 } SIDES_T;
 
+typedef struct {
+    double width;
+    double height;
+    double thickness;
+    int count;
+} DETAIL_DEF_T;
+
 HRESULT WriteAttributes(IXmlReader* pReader)
 {
     const WCHAR* pwszPrefix;
@@ -168,6 +175,13 @@ static void _create_detail(//SUComponentInstanceRef instance,
     }
 }
 
+static void _create_detail_components(SUEntitiesRef entities, //root entities
+                                      double width, double height, double thickness,
+                                      int count)
+{
+
+}
+
 int write_new_model()
 {
     // Always initialize the API before using it
@@ -195,17 +209,6 @@ int write_new_model()
     SUComponentInstanceRef instance = SU_INVALID;
     SU_CALL(SUComponentDefinitionCreateInstance(definition, &instance));
 
-    // Add the instance to the parent entities
-#if 0
-    SUStringRef name = SU_INVALID;
-    SU_CALL(SUStringCreateFromUTF8(&name, "detail 1 instance 1"));
-    SU_CALL(SUEntitiesAddInstance(entities, instance, &name));
-    SU_CALL(SUStringRelease(&name));
-#else
-    SU_CALL(SUEntitiesAddInstance(entities, instance, NULL));
-#endif
-
-
     //faces locations inside the component_def
     const struct SUTransformation transform = {
         {
@@ -225,9 +228,30 @@ int write_new_model()
 
     _create_detail(instance_entities, 70, 360, 18);
 
+    //And this offset for component instance
+    const struct SUTransformation transform3 = {
+        {
+            1.0,    0.0,    0.0,    0.0,
+            0.0,    1.0,    0.0,    0.0,
+            0.0,    0.0,    1.0,    0.0,
+            4.0,    0.0,    0.0,    1,
+        }
+    };
+
+    SU_CALL(SUComponentInstanceSetTransform(instance, &transform3));
+
+    // Add the instance to the parent entities
+#if 0
+    SUStringRef name = SU_INVALID;
+    SU_CALL(SUStringCreateFromUTF8(&name, "detail 1 instance 1"));
+    SU_CALL(SUEntitiesAddInstance(entities, instance, &name));
+    SU_CALL(SUStringRelease(&name));
+#else
+    SU_CALL(SUEntitiesAddInstance(entities, instance, NULL));
+#endif
+
+#if 1
     SUComponentInstanceRef instance2 = SU_INVALID;
-    SU_CALL(SUComponentDefinitionCreateInstance(definition, &instance2));
-    SU_CALL(SUEntitiesAddInstance(entities, instance2, NULL));
     SU_CALL(SUComponentDefinitionCreateInstance(definition, &instance2));
 
     //faces locations inside the component_def
@@ -243,6 +267,9 @@ int write_new_model()
     // Set the transformation
     SU_CALL(SUComponentInstanceSetTransform(instance2, &transform2));
 
+    SU_CALL(SUEntitiesAddInstance(entities, instance2, NULL));
+
+#endif
     // Save the in-memory model to a file
     SU_CALL(SUModelSaveToFile(model, "new_model.skp"));
     SU_CALL(SUModelSaveToFileWithVersion(model, "new_model_SU2017.skp", SUModelVersion_SU2017));
