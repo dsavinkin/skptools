@@ -35,9 +35,14 @@
 
 #pragma warning(disable : 4127)  // conditional expression is constant
 #define CHKHR(stmt)             do { hr = (stmt); if (FAILED(hr)) goto CleanUp; } while(0)
-#define HR(stmt)                do { hr = (stmt); goto CleanUp; } while(0)
+#define HR(stmt)                do { hr = (stmt); printf("HR line %d\n", __LINE__);goto CleanUp; } while(0)
 #define SAFE_RELEASE(I)         do { if (I){ I->Release(); } I = NULL; } while(0)
 
+#define MM2INCH(x) ((x)/25.4)
+
+#ifndef SU_CALL
+#define SU_CALL(func) if ((func) != SU_ERROR_NONE) throw std::exception()
+#endif
 
 HRESULT WriteAttributes(IXmlReader* pReader)
 {
@@ -88,6 +93,71 @@ HRESULT WriteAttributes(IXmlReader* pReader)
     return hr;
 }
 
+static void _add_face(SUEntitiesRef entities, SUPoint3D vertices[4])
+{
+    SULoopInputRef outer_loop = SU_INVALID;
+    SULoopInputCreate(&outer_loop);
+    for (size_t i = 0; i < 4; ++i) {
+        SULoopInputAddVertexIndex(outer_loop, i);
+    }
+    // Create the face
+    SUFaceRef faces[2] = {SU_INVALID, SU_INVALID};
+    SUFaceRef face = SU_INVALID;
+
+    SUFaceCreate(&face, vertices, &outer_loop);
+    // Add the face to the entities
+    SUEntitiesAddFaces(entities, 1, &face);
+}
+
+static void _create_detail(//SUComponentInstanceRef instance,
+                               SUEntitiesRef entities,
+                               double width, double height, double thickness)
+{
+    SUPoint3D sides[6][4] = {
+        {
+            { 0,                0,                  0 },
+            { 0,                MM2INCH(height),    0 },
+            { MM2INCH(width),   MM2INCH(height),    0 },
+            { MM2INCH(width),   0,                  0 },
+        },
+        {
+            { 0,                0,                  MM2INCH(thickness) },
+            { MM2INCH(width),   0,                  MM2INCH(thickness) },
+            { MM2INCH(width),   MM2INCH(height),    MM2INCH(thickness) },
+            { 0,                MM2INCH(height),    MM2INCH(thickness) },
+        },
+        {
+            { 0,                0,                  0 },
+            { MM2INCH(width),   0,                  0 },
+            { MM2INCH(width),   0,                  MM2INCH(thickness) },
+            { 0,                0,                  MM2INCH(thickness) }
+        },
+        {
+            { 0,                MM2INCH(height),    0 },
+            { 0,                MM2INCH(height),    MM2INCH(thickness) },
+            { MM2INCH(width),   MM2INCH(height),    MM2INCH(thickness) },
+            { MM2INCH(width),   MM2INCH(height),    0 },
+        },
+        {
+            { 0,                0,                  0 },
+            { 0,                0,                  MM2INCH(thickness) },
+            { 0,                MM2INCH(height),    MM2INCH(thickness) },
+            { 0,                MM2INCH(height),    0 },
+        },
+        {
+            { MM2INCH(width),   0,                  0 },
+            { MM2INCH(width),   MM2INCH(height),    0 },
+            { MM2INCH(width),   MM2INCH(height),    MM2INCH(thickness) },
+            { MM2INCH(width),   0,                  MM2INCH(thickness) },
+        },
+    };
+
+    for (size_t i = 0; i < 6; ++i)
+    {
+        _add_face(entities, sides[i]);
+    }
+}
+
 int write_new_model()
 {
     // Always initialize the API before using it
@@ -98,30 +168,21 @@ int write_new_model()
     // It's best to always check the return code from each SU function call.
     // Only showing this check once to keep this example short.
     if (res != SU_ERROR_NONE)
+    {
         return 1;
+    }
     // Get the entity container of the model
     SUEntitiesRef entities = SU_INVALID;
     SUModelGetEntities(model, &entities);
     // Create a loop input describing the vertex ordering for a face's outer loop
-    SULoopInputRef outer_loop = SU_INVALID;
-    SULoopInputCreate(&outer_loop);
-    for (size_t i = 0; i < 4; ++i) {
-        SULoopInputAddVertexIndex(outer_loop, i);
-    }
-    // Create the face
-    SUFaceRef face = SU_INVALID;
-    SUPoint3D vertices[4] = { { 0,   0,   0 },
-        { 100, 100, 0 },
-        { 100, 100, 100 },
-        { 0,   0,   100 } };
-    SUFaceCreate(&face, vertices, &outer_loop);
-    // Add the face to the entities
-    SUEntitiesAddFaces(entities, 1, &face);
+
+    _create_detail(entities, 70, 360, 18);
+
     // Save the in-memory model to a file
     SUModelSaveToFile(model, "new_model.skp");
     SUModelSaveToFileWithVersion(model, "new_model_SU2017.skp", SUModelVersion_SU2017);
     SUModelSaveToFileWithVersion(model, "new_model_SU2016.skp", SUModelVersion_SU2016);
-    SUModelSaveToFileWithVersion(model, "new_model_SU3.skp", SUModelVersion_SU3); //oldest
+    SUModelSaveToFileWithVersion(model, "new_model_SU3.skp", SUModelVersion_SU3); //oldest supported version
 
     // Must release the model or there will be memory leaks
     SUModelRelease(&model);
@@ -270,7 +331,7 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
         }
     }
 
-    write_new_model();
+    hr = write_new_model();
 
 CleanUp:
     SAFE_RELEASE(pFileStream);
