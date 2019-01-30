@@ -19,9 +19,10 @@
     printf(#func" = %zd\n", count); \
 } while (0)
 
-int main() {
-	const char *skp_filename = "model.skp";
-	printf("reading '%s'\n", skp_filename);
+int main(int argc, char **argv)
+{
+	const char *skp_filename = (argc == 1) ? "model.skp" : argv[1];
+	printf("reading '%s' %d\n", skp_filename, argc);
 
     // Always initialize the API before using it
     SUInitialize();
@@ -133,7 +134,7 @@ int main() {
                               transform.values[0],transform.values[1],transform.values[2],transform.values[3],
                               transform.values[4],transform.values[5],transform.values[6],transform.values[7],
                               transform.values[8],transform.values[9],transform.values[10],transform.values[11],
-                              transform.values[12],transform.values[13],transform.values[14],transform.values[15]);
+                              transform.values[12]*25.4,transform.values[13]*25.4,transform.values[14]*25.4);
                     }
                 }
                 else
@@ -155,7 +156,7 @@ int main() {
                 SUGroupRef group = groups[i];
                 if (!SUIsInvalid(group)) {
                     // Get the component part of the group
-                    printf("Valid group %zd\n", i);
+                    //printf("Valid group %zd\n", i);
                     SUEntitiesRef group_entities = SU_INVALID;
                     SUGroupGetEntities(group, &group_entities);
 
