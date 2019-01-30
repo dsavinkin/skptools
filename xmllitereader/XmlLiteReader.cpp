@@ -39,10 +39,20 @@
 #define SAFE_RELEASE(I)         do { if (I){ I->Release(); } I = NULL; } while(0)
 
 #define MM2INCH(x) ((x)/25.4)
+#define INCH2MM(x) ((x)*25.4)
 
 #ifndef SU_CALL
 #define SU_CALL(func) if ((func) != SU_ERROR_NONE) throw std::exception()
 #endif
+
+typedef enum {
+    SIDE_FRONT,
+    SIDE_LEFT,
+    SIDE_TOP,
+    SIDE_RIGHT,
+    SIDE_BOTTOM,
+    SIDE_BACK
+} SIDES_T;
 
 HRESULT WriteAttributes(IXmlReader* pReader)
 {
@@ -171,21 +181,76 @@ int write_new_model()
     {
         return 1;
     }
+
     // Get the entity container of the model
     SUEntitiesRef entities = SU_INVALID;
     SUModelGetEntities(model, &entities);
-    // Create a loop input describing the vertex ordering for a face's outer loop
 
-    _create_detail(entities, 70, 360, 18);
+    SUComponentDefinitionRef definition = SU_INVALID;
+    SU_CALL(SUComponentDefinitionCreate(&definition));
+    SU_CALL(SUComponentDefinitionSetName(definition, "detail 1"));
+    SU_CALL(SUModelAddComponentDefinitions(model, 1, &definition));
+
+    // Add instance for this definition
+    SUComponentInstanceRef instance = SU_INVALID;
+    SU_CALL(SUComponentDefinitionCreateInstance(definition, &instance));
+
+    // Add the instance to the parent entities
+#if 0
+    SUStringRef name = SU_INVALID;
+    SU_CALL(SUStringCreateFromUTF8(&name, "detail 1 instance 1"));
+    SU_CALL(SUEntitiesAddInstance(entities, instance, &name));
+    SU_CALL(SUStringRelease(&name));
+#else
+    SU_CALL(SUEntitiesAddInstance(entities, instance, NULL));
+#endif
+
+
+    //faces locations inside the component_def
+    const struct SUTransformation transform = {
+        {
+            1.0,    0.0,    0.0,    0.0,
+            0.0,    1.0,    0.0,    0.0,
+            0.0,    0.0,    1.0,    0.0,
+            0.0,    0.0,    0.0,    1,
+        }
+    };
+
+    // Set the transformation
+    SU_CALL(SUComponentInstanceSetTransform(instance, &transform));
+
+    // Populate the entities of the definition using recursion
+    SUEntitiesRef instance_entities = SU_INVALID;
+    SU_CALL(SUComponentDefinitionGetEntities(definition, &instance_entities));
+
+    _create_detail(instance_entities, 70, 360, 18);
+
+    SUComponentInstanceRef instance2 = SU_INVALID;
+    SU_CALL(SUComponentDefinitionCreateInstance(definition, &instance2));
+    SU_CALL(SUEntitiesAddInstance(entities, instance2, NULL));
+    SU_CALL(SUComponentDefinitionCreateInstance(definition, &instance2));
+
+    //faces locations inside the component_def
+    const struct SUTransformation transform2 = {
+        {
+            1.0,    0.0,    0.0,    0.0,
+            0.0,    1.0,    0.0,    0.0,
+            0.0,    0.0,    1.0,    0.0,
+            0.0,    0.0,    9.0,    1,
+        }
+    };
+
+    // Set the transformation
+    SU_CALL(SUComponentInstanceSetTransform(instance2, &transform2));
 
     // Save the in-memory model to a file
-    SUModelSaveToFile(model, "new_model.skp");
-    SUModelSaveToFileWithVersion(model, "new_model_SU2017.skp", SUModelVersion_SU2017);
-    SUModelSaveToFileWithVersion(model, "new_model_SU2016.skp", SUModelVersion_SU2016);
-    SUModelSaveToFileWithVersion(model, "new_model_SU3.skp", SUModelVersion_SU3); //oldest supported version
+    SU_CALL(SUModelSaveToFile(model, "new_model.skp"));
+    SU_CALL(SUModelSaveToFileWithVersion(model, "new_model_SU2017.skp", SUModelVersion_SU2017));
+    SU_CALL(SUModelSaveToFileWithVersion(model, "new_model_SU2016.skp", SUModelVersion_SU2016));
+    SU_CALL(SUModelSaveToFileWithVersion(model, "new_model_SU3.skp", SUModelVersion_SU3)); //oldest supported version
 
     // Must release the model or there will be memory leaks
-    SUModelRelease(&model);
+    SU_CALL(SUModelRelease(&model));
     // Always terminate the API when done using it
     SUTerminate();
     return 0;
