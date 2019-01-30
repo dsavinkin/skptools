@@ -9,6 +9,7 @@
 #include <SketchUpAPI/model/vertex.h>
 
 #include <SketchUpAPI/model/component_instance.h>
+#include <SketchUpAPI/model/component_definition.h>
 #include <SketchUpAPI/model/group.h>
 #include <vector>
 
@@ -216,12 +217,12 @@ int main() {
             SUComponentDefinitionRef component = components[i];
             if (!SUIsInvalid(component))
             {
-/*
+
                 if (1)
                 {
                     SUStringRef name = SU_INVALID;
                     SUStringCreate(&name);
-                    SUComponentInstanceGetName(component, &name);
+                    SUComponentDefinitionGetName(component, &name);
                     size_t name_length = 0;
                     SUStringGetUTF8Length(name, &name_length);
                     char* name_utf8 = new char[name_length + 1];
@@ -236,7 +237,7 @@ int main() {
                 {
                     SUStringRef guid = SU_INVALID;
                     SUStringCreate(&guid);
-                    SUComponentInstanceGetGuid(component, &guid);
+                    SUComponentDefinitionGetGuid(component, &guid);
                     size_t name_length = 0;
                     SUStringGetUTF8Length(guid, &name_length);
                     char* guid_utf8 = new char[name_length + 1];
@@ -249,15 +250,45 @@ int main() {
 
                 if (1)
                 {
-                    struct SUTransformation transform;
-                    SUComponentInstanceGetTransform(component, &transform);
-                    printf("transform=\n%f\t%f\t%f\t%f\n%f\t%f\t%f\t%f\n%f\t%f\t%f\t%f\n%f\t%f\t%f\t%f\n",
-                           transform.values[0],transform.values[1],transform.values[2],transform.values[3],
-                           transform.values[4],transform.values[5],transform.values[6],transform.values[7],
-                           transform.values[8],transform.values[9],transform.values[10],transform.values[11],
-                           transform.values[12],transform.values[13],transform.values[14],transform.values[15]);
+                    SUStringRef desc = SU_INVALID;
+                    SUStringCreate(&desc);
+                    SUComponentDefinitionGetDescription(component, &desc);
+                    size_t name_length = 0;
+                    SUStringGetUTF8Length(desc, &name_length);
+                    char* guid_utf8 = new char[name_length + 1];
+                    SUStringGetUTF8(desc, name_length + 1, guid_utf8, &name_length);
+                    // Now we have the name in a form we can use
+                    SUStringRelease(&desc);
+                    printf("desc=%s\n", guid_utf8);
+                    delete []guid_utf8;
                 }
-*/
+
+                if (1)
+                {
+                    SUStringRef path = SU_INVALID;
+                    SUStringCreate(&path);
+                    SUComponentDefinitionGetPath(component, &path);
+                    size_t name_length = 0;
+                    SUStringGetUTF8Length(path, &name_length);
+                    char* guid_utf8 = new char[name_length + 1];
+                    SUStringGetUTF8(path, name_length + 1, guid_utf8, &name_length);
+                    // Now we have the name in a form we can use
+                    SUStringRelease(&path);
+                    printf("path=%s\n", guid_utf8);
+                    delete []guid_utf8;
+                }
+
+                SUPoint3D insertPoint;
+                SUComponentDefinitionGetInsertPoint(component, &insertPoint);
+                printf("insert_point: %f-%f-%f\n", insertPoint.x, insertPoint.y, insertPoint.z);
+
+                enum SUComponentType type;
+                SUComponentDefinitionGetType(component, &type);
+                printf("type=%d\n", type);
+
+                PRINT_COUNT(SUComponentDefinitionGetNumUsedInstances, component);
+                PRINT_COUNT(SUComponentDefinitionGetNumInstances, component);
+                PRINT_COUNT(SUComponentDefinitionGetNumOpenings, component);
             }
             else
             {
@@ -265,7 +296,6 @@ int main() {
             }
         }
     }
-
 
     // Must release the model or there will be memory leaks
     SUModelRelease(&model);
