@@ -45,6 +45,9 @@
 #define SU_CALL(func) if ((func) != SU_ERROR_NONE) throw std::exception()
 #endif
 
+#define DISTANCE_X 50 //mm
+#define DISTANCE_Z 3 //*thickness
+
 typedef enum {
     SIDE_FRONT,
     SIDE_LEFT,
@@ -55,11 +58,14 @@ typedef enum {
 } SIDES_T;
 
 typedef struct {
+    char* name;
     double width;
     double height;
     double thickness;
-    int count;
+    size_t count;
 } DETAIL_DEF_T;
+
+static double _last_detail_position_X = 0;
 
 HRESULT WriteAttributes(IXmlReader* pReader)
 {
@@ -175,10 +181,59 @@ static void _create_detail(//SUComponentInstanceRef instance,
     }
 }
 
-static void _create_detail_components(SUEntitiesRef entities, //root entities
-                                      double width, double height, double thickness,
-                                      int count)
+static void _create_detail_components(SUModelRef model,
+                                      DETAIL_DEF_T *detail_def)
 {
+
+    SUEntitiesRef entities = SU_INVALID;
+    SU_CALL(SUModelGetEntities(model, &entities));
+
+    SUComponentDefinitionRef definition = SU_INVALID;
+    SU_CALL(SUComponentDefinitionCreate(&definition));
+    SU_CALL(SUComponentDefinitionSetName(definition, detail_def->name));
+    SU_CALL(SUModelAddComponentDefinitions(model, 1, &definition));
+
+    // Add instance for this definition
+    SUComponentInstanceRef instance = SU_INVALID;
+    SU_CALL(SUComponentDefinitionCreateInstance(definition, &instance));
+
+    //faces locations inside the component_def
+    struct SUTransformation transform = {
+            {
+                1.0,    0.0,    0.0,    0.0,
+                0.0,    1.0,    0.0,    0.0,
+                0.0,    0.0,    1.0,    0.0,
+                0.0,    0.0,    0.0,    1,
+            } };
+
+    // Set the transformation
+    SU_CALL(SUComponentInstanceSetTransform(instance, &transform));
+
+    // Populate the entities of the definition using recursion
+    SUEntitiesRef instance_entities = SU_INVALID;
+    SU_CALL(SUComponentDefinitionGetEntities(definition, &instance_entities));
+
+    _create_detail(instance_entities, detail_def->width, detail_def->height, detail_def->thickness);
+
+    //component instance location
+    transform.values[12] = _last_detail_position_X;
+
+    SU_CALL(SUComponentInstanceSetTransform(instance, &transform));
+    SU_CALL(SUEntitiesAddInstance(entities, instance, NULL));
+
+    for (size_t i = 1; i < detail_def->count; i++)
+    {
+        transform.values[14] = MM2INCH(i*detail_def->thickness * DISTANCE_Z);
+
+        SUComponentInstanceRef instance2 = SU_INVALID;
+        SU_CALL(SUComponentDefinitionCreateInstance(definition, &instance2));
+
+        // Set the transformation
+        SU_CALL(SUComponentInstanceSetTransform(instance2, &transform));
+        SU_CALL(SUEntitiesAddInstance(entities, instance2, NULL));
+    }
+
+    _last_detail_position_X += MM2INCH(DISTANCE_X + detail_def->width);
 
 }
 
@@ -188,88 +243,26 @@ int write_new_model()
     SUInitialize();
     // Create an empty model
     SUModelRef model = SU_INVALID;
-    SUResult res = SUModelCreate(&model);
-    // It's best to always check the return code from each SU function call.
-    // Only showing this check once to keep this example short.
-    if (res != SU_ERROR_NONE)
-    {
-        return 1;
-    }
+    SU_CALL(SUModelCreate(&model));
 
-    // Get the entity container of the model
-    SUEntitiesRef entities = SU_INVALID;
-    SUModelGetEntities(model, &entities);
+    DETAIL_DEF_T detail;
+    detail.name = "detail 1";
+    detail.width = 70;
+    detail.height = 360;
+    detail.thickness = 18;
+    detail.count = 5;
 
-    SUComponentDefinitionRef definition = SU_INVALID;
-    SU_CALL(SUComponentDefinitionCreate(&definition));
-    SU_CALL(SUComponentDefinitionSetName(definition, "detail 1"));
-    SU_CALL(SUModelAddComponentDefinitions(model, 1, &definition));
+    _create_detail_components(model, &detail);
 
-    // Add instance for this definition
-    SUComponentInstanceRef instance = SU_INVALID;
-    SU_CALL(SUComponentDefinitionCreateInstance(definition, &instance));
+    detail.name = "detail 2";
+    detail.width = 270;
+    detail.height = 160;
+    detail.thickness = 18;
+    detail.count = 3;
 
-    //faces locations inside the component_def
-    const struct SUTransformation transform = {
-        {
-            1.0,    0.0,    0.0,    0.0,
-            0.0,    1.0,    0.0,    0.0,
-            0.0,    0.0,    1.0,    0.0,
-            0.0,    0.0,    0.0,    1,
-        }
-    };
+    _create_detail_components(model, &detail);
 
-    // Set the transformation
-    SU_CALL(SUComponentInstanceSetTransform(instance, &transform));
 
-    // Populate the entities of the definition using recursion
-    SUEntitiesRef instance_entities = SU_INVALID;
-    SU_CALL(SUComponentDefinitionGetEntities(definition, &instance_entities));
-
-    _create_detail(instance_entities, 70, 360, 18);
-
-    //And this offset for component instance
-    const struct SUTransformation transform3 = {
-        {
-            1.0,    0.0,    0.0,    0.0,
-            0.0,    1.0,    0.0,    0.0,
-            0.0,    0.0,    1.0,    0.0,
-            4.0,    0.0,    0.0,    1,
-        }
-    };
-
-    SU_CALL(SUComponentInstanceSetTransform(instance, &transform3));
-
-    // Add the instance to the parent entities
-#if 0
-    SUStringRef name = SU_INVALID;
-    SU_CALL(SUStringCreateFromUTF8(&name, "detail 1 instance 1"));
-    SU_CALL(SUEntitiesAddInstance(entities, instance, &name));
-    SU_CALL(SUStringRelease(&name));
-#else
-    SU_CALL(SUEntitiesAddInstance(entities, instance, NULL));
-#endif
-
-#if 1
-    SUComponentInstanceRef instance2 = SU_INVALID;
-    SU_CALL(SUComponentDefinitionCreateInstance(definition, &instance2));
-
-    //faces locations inside the component_def
-    const struct SUTransformation transform2 = {
-        {
-            1.0,    0.0,    0.0,    0.0,
-            0.0,    1.0,    0.0,    0.0,
-            0.0,    0.0,    1.0,    0.0,
-            0.0,    0.0,    9.0,    1,
-        }
-    };
-
-    // Set the transformation
-    SU_CALL(SUComponentInstanceSetTransform(instance2, &transform2));
-
-    SU_CALL(SUEntitiesAddInstance(entities, instance2, NULL));
-
-#endif
     // Save the in-memory model to a file
     SU_CALL(SUModelSaveToFile(model, "new_model.skp"));
     SU_CALL(SUModelSaveToFileWithVersion(model, "new_model_SU2017.skp", SUModelVersion_SU2017));

@@ -209,7 +209,7 @@ int main(int argc, char **argv)
     SUStringGetUTF8(name, name_length + 1, name_utf8, &name_length);
     // Now we have the name in a form we can use
     SUStringRelease(&name);
-    printf("%s: name=%s\n", prefix, name_utf8);
+    printf("%s: name='%s'\n", prefix, name_utf8);
     delete []name_utf8;
 
     enum SUModelUnits units;
@@ -259,7 +259,7 @@ int main(int argc, char **argv)
                     SUStringGetUTF8(name, name_length + 1, name_utf8, &name_length);
                     // Now we have the name in a form we can use
                     SUStringRelease(&name);
-                    printf("%s: name=%s\n", prefix, name_utf8);
+                    printf("%s: name='%s'\n", prefix, name_utf8);
                     delete []name_utf8;
                 }
 
@@ -274,7 +274,7 @@ int main(int argc, char **argv)
                     SUStringGetUTF8(guid, name_length + 1, guid_utf8, &name_length);
                     // Now we have the name in a form we can use
                     SUStringRelease(&guid);
-                    printf("%s: guid=%s\n", prefix, guid_utf8);
+                    printf("%s: guid='%s'\n", prefix, guid_utf8);
                     delete []guid_utf8;
                 }
 
@@ -289,7 +289,7 @@ int main(int argc, char **argv)
                     SUStringGetUTF8(desc, name_length + 1, guid_utf8, &name_length);
                     // Now we have the name in a form we can use
                     SUStringRelease(&desc);
-                    printf("%s: desc=%s\n", prefix, guid_utf8);
+                    printf("%s: desc='%s'\n", prefix, guid_utf8);
                     delete []guid_utf8;
                 }
 
@@ -304,7 +304,7 @@ int main(int argc, char **argv)
                     SUStringGetUTF8(path, name_length + 1, guid_utf8, &name_length);
                     // Now we have the name in a form we can use
                     SUStringRelease(&path);
-                    printf("%s: path=%s\n", prefix, guid_utf8);
+                    printf("%s: path='%s'\n", prefix, guid_utf8);
                     delete []guid_utf8;
                 }
 
