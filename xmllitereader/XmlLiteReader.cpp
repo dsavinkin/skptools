@@ -38,6 +38,9 @@
 #define HR(stmt)                do { hr = (stmt); printf("HR line %d\n", __LINE__);goto CleanUp; } while(0)
 #define SAFE_RELEASE(I)         do { if (I){ I->Release(); } I = NULL; } while(0)
 
+#define PARSE_FAIL(ret)                do { printf("HR line %d\n", __LINE__); return (ret); } while(0)
+
+
 #define MM2INCH(x) ((x)/25.4)
 #define INCH2MM(x) ((x)*25.4)
 
@@ -47,6 +50,66 @@
 
 #define DISTANCE_X 50 //mm
 #define DISTANCE_Z 3 //*thickness
+
+typedef enum {
+    ELEMENT_PROJECT,
+    ELEMENT_VIYAR,
+    ELEMENT_USER,
+    ELEMENT_ORDER,
+    ELEMENT_CONSTRUCTOR,
+    ELEMENT_MATERIALS,
+    ELEMENT_MATERIAL,
+    ELEMENT_PARTS,
+    ELEMENT_DETAILS,
+    ELEMENT_DETAIL,
+    ELEMENT_EDGES,
+    ELEMENT_LEFT,
+    ELEMENT_RIGHT,
+    ELEMENT_TOP,
+    ELEMENT_BOTTOM,
+    ELEMENT_OPERATIONS,
+    ELEMENT_OPERATION,
+    ELEMENT_PRODUCTS,
+    ELEMENT_UNKNOWN,
+    MAX_ELEMENTS
+} ELEMENTS_T;
+
+const WCHAR *elements_str[MAX_ELEMENTS] = {
+    L"project",
+    L"viyar",
+    L"user",
+    L"order",
+    L"constructor",
+    L"materials",
+    L"material",
+    L"parts",
+    L"details",
+    L"detail",
+    L"edges",
+    L"left",
+    L"right",
+    L"top",
+    L"bottom",
+    L"operations",
+    L"operation",
+    L"products",
+    L"unknown"
+};
+
+typedef enum {
+    STATE_ROOT = 0,
+
+    STATE_MATERIALS,
+    STATE_DETAILS,
+    STATE_MAX
+} VIYAR_STATE_T;
+
+typedef enum {
+    MODEL_NONE,
+    MODEL_OPENED,
+    MODEL_CLOSED,
+} MODEL_STATE_T;
+
 
 typedef enum {
     SIDE_FRONT,
@@ -62,17 +125,163 @@ typedef struct {
     double width;
     double height;
     double thickness;
-    size_t count;
+    size_t amount;
 } DETAIL_DEF_T;
+
+static VIYAR_STATE_T _state = STATE_ROOT;
+static MODEL_STATE_T _model_state = MODEL_NONE;
+
+typedef HRESULT (*attribute_cb)(const WCHAR* elementName,
+                                const WCHAR* LocalName,
+                                const WCHAR* Value,
+                                void *data);
 
 static double _last_detail_position_X = 0;
 
-HRESULT WriteAttributes(IXmlReader* pReader)
+
+static HRESULT _element_start(const WCHAR* ElementName, void *data)
+{
+    wprintf(L"S %d: Element start (%p) <%s ...\n", _state, data, ElementName);
+
+    switch (_state)
+    {
+        case STATE_ROOT:
+            if (wcscmp(ElementName, L"project") == 0)
+            {
+                if (_model_state == MODEL_NONE)
+                {
+                    _model_state = MODEL_OPENED;
+                    wprintf(L"TODO: create/read Model\n");
+                }
+            }
+            else if (wcscmp(ElementName, L"materials") == 0)
+            {
+                if (_model_state != MODEL_OPENED)
+                {
+                    PARSE_FAIL(E_ABORT);
+                }
+                _state = STATE_MATERIALS;
+            }
+            else if (wcscmp(ElementName, L"details") == 0)
+            {
+                if (_model_state != MODEL_OPENED)
+                {
+                    PARSE_FAIL(E_ABORT);
+                }
+                _state = STATE_DETAILS;
+            }
+            else
+            {
+                // Ignore
+            }
+            break;
+
+        case STATE_MATERIALS:
+            if (wcscmp(ElementName, L"material") == 0)
+            {
+                wprintf(L"TODO: start adding materials\n");
+            }
+            else
+            {
+                wprintf(L"TODO: (%s) continue updating materials\n", ElementName);
+            }
+            break;
+
+        case STATE_DETAILS:
+            if (wcscmp(ElementName, L"detail") == 0)
+            {
+                wprintf(L"TODO: start adding details\n");
+            }
+            else
+            {
+                wprintf(L"TODO: (%s) continue updating details\n", ElementName);
+            }
+            break;
+
+        default:
+            PARSE_FAIL(E_ABORT);
+    }
+
+    return S_OK;
+}
+
+static HRESULT _element_end(const WCHAR* ElementName, void *data)
+{
+    wprintf(L"S %d: End element </%s> (%p)\n", _state, ElementName, data);
+
+    switch (_state)
+    {
+        case STATE_ROOT:
+            if (wcscmp(ElementName, L"project") == 0)
+            {
+                if (_model_state == MODEL_OPENED)
+                {
+                    _model_state = MODEL_CLOSED;
+                    wprintf(L"TODO: save/close Model\n");
+                }
+            }
+            break;
+
+        case STATE_MATERIALS:
+            if (wcscmp(ElementName, L"materials") == 0)
+            {
+                _state = STATE_ROOT;
+            }
+            break;
+
+        case STATE_DETAILS:
+            if (wcscmp(ElementName, L"detail") == 0)
+            {
+                wprintf(L"TODO: add detail to Model\n");
+            }
+            else if (wcscmp(ElementName, L"details") == 0)
+            {
+                _state = STATE_ROOT;
+            }
+            break;
+
+        default:
+            PARSE_FAIL(E_ABORT);
+    }
+
+    return S_OK;
+}
+
+static HRESULT _parse_declaration(const WCHAR* ElementName,
+                                  const WCHAR* LocalName,
+                                  const WCHAR* Value,
+                                  void *data)
+{
+    wprintf(L"declaration %s=\"%s\"> (%p)\n", LocalName, Value, data);
+
+    return S_OK;
+}
+
+static HRESULT _parse_element(const WCHAR* ElementName,
+                              const WCHAR* LocalName,
+                              const WCHAR* Value,
+                              void *data)
+{
+    //wprintf(L"<%s %s=\"%s\"> (%p)\n", ElementName, LocalName, Value, data);
+
+    return S_OK;
+}
+
+HRESULT WriteAttributes(IXmlReader* pReader, const WCHAR* ElementName, attribute_cb cb, void *data)
 {
     const WCHAR* pwszPrefix;
     const WCHAR* pwszLocalName;
     const WCHAR* pwszValue;
-    HRESULT hr = pReader->MoveToFirstAttribute();
+
+    HRESULT hr = _element_start(ElementName, data);
+
+    if (S_OK != hr)
+    {
+        wprintf(L"Callback returned error (%d)\n", hr);
+        return hr;
+    }
+
+    hr = pReader->MoveToFirstAttribute();
 
     if (S_FALSE == hr)
         return hr;
@@ -83,7 +292,7 @@ HRESULT WriteAttributes(IXmlReader* pReader)
     }
     else
     {
-        while (TRUE)
+        do
         {
             if (!pReader->IsDefault())
             {
@@ -103,15 +312,22 @@ HRESULT WriteAttributes(IXmlReader* pReader)
                     wprintf(L"Error getting value, error is %08.8lx", hr);
                     return hr;
                 }
+/*
                 if (cwchPrefix > 0)
-                    wprintf(L"Attr: %s:%s=\"%s\" \n", pwszPrefix, pwszLocalName, pwszValue);
+                    wprintf(L"%s Attr: %s:%s=\"%s\" \n", ElementName, pwszPrefix, pwszLocalName, pwszValue);
                 else
-                    wprintf(L"Attr: %s=\"%s\" \n", pwszLocalName, pwszValue);
+                    wprintf(L"%s Attr: %s=\"%s\" \n", ElementName, pwszLocalName, pwszValue);
+*/
+                if (cb)
+                {
+                    if (FAILED(hr = cb(ElementName, pwszLocalName, pwszValue, data)))
+                    {
+                        wprintf(L"Callback returned error (%d)\n", hr);
+                        return hr;
+                    }
+                }
             }
-
-            if (S_OK != pReader->MoveToNextAttribute())
-                break;
-        }
+        } while (pReader->MoveToNextAttribute() == S_OK);
     }
     return hr;
 }
@@ -221,7 +437,7 @@ static void _create_detail_components(SUModelRef model,
     SU_CALL(SUComponentInstanceSetTransform(instance, &transform));
     SU_CALL(SUEntitiesAddInstance(entities, instance, NULL));
 
-    for (size_t i = 1; i < detail_def->count; i++)
+    for (size_t i = 1; i < detail_def->amount; i++)
     {
         transform.values[14] = MM2INCH(i*detail_def->thickness * DISTANCE_Z);
 
@@ -250,7 +466,7 @@ int write_new_model()
     detail.width = 70;
     detail.height = 360;
     detail.thickness = 18;
-    detail.count = 5;
+    detail.amount = 5;
 
     _create_detail_components(model, &detail);
 
@@ -258,7 +474,7 @@ int write_new_model()
     detail.width = 270;
     detail.height = 160;
     detail.thickness = 18;
-    detail.count = 3;
+    detail.amount = 3;
 
     _create_detail_components(model, &detail);
 
@@ -276,7 +492,7 @@ int write_new_model()
     return 0;
 }
 
-int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
+int parse_xml(const WCHAR* xmlfilename)
 {
     HRESULT hr = S_OK;
     IStream *pFileStream = NULL;
@@ -287,14 +503,8 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
     const WCHAR* pwszValue;
     UINT cwchPrefix;
 
-    if (argc != 2)
-    {
-        wprintf(L"Usage: XmlLiteReader.exe name-of-input-file\n");
-        return 0;
-    }
-
     //Open read-only input stream
-    if (FAILED(hr = SHCreateStreamOnFile(argv[1], STGM_READ, &pFileStream)))
+    if (FAILED(hr = SHCreateStreamOnFile(xmlfilename, STGM_READ, &pFileStream)))
     {
         wprintf(L"Error creating file reader, error is %08.8lx", hr);
         HR(hr);
@@ -323,96 +533,101 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
     {
         switch (nodeType)
         {
-        case XmlNodeType_XmlDeclaration:
-            wprintf(L"XmlDeclaration\n");
-            if (FAILED(hr = WriteAttributes(pReader)))
-            {
-                wprintf(L"Error writing attributes, error is %08.8lx", hr);
-                HR(hr);
-            }
-            break;
-        case XmlNodeType_Element:
-            if (FAILED(hr = pReader->GetPrefix(&pwszPrefix, &cwchPrefix)))
-            {
-                wprintf(L"Error getting prefix, error is %08.8lx", hr);
-                HR(hr);
-            }
-            if (FAILED(hr = pReader->GetLocalName(&pwszLocalName, NULL)))
-            {
-                wprintf(L"Error getting local name, error is %08.8lx", hr);
-                HR(hr);
-            }
-            if (cwchPrefix > 0)
-                wprintf(L"Element: %s:%s\n", pwszPrefix, pwszLocalName);
-            else
-                wprintf(L"Element: %s\n", pwszLocalName);
+            case XmlNodeType_XmlDeclaration:
+                wprintf(L"XmlDeclaration\n");
+                if (FAILED(hr = WriteAttributes(pReader, L"Declaration", _parse_declaration, NULL)))
+                {
+                    wprintf(L"Error writing attributes, error is %08.8lx", hr);
+                    HR(hr);
+                }
+                break;
+            case XmlNodeType_Element:
+                if (FAILED(hr = pReader->GetPrefix(&pwszPrefix, &cwchPrefix)))
+                {
+                    wprintf(L"Error getting prefix, error is %08.8lx", hr);
+                    HR(hr);
+                }
+                if (FAILED(hr = pReader->GetLocalName(&pwszLocalName, NULL)))
+                {
+                    wprintf(L"Error getting local name, error is %08.8lx", hr);
+                    HR(hr);
+                }
+                /*
+                            if (cwchPrefix > 0)
+                                wprintf(L"Element: %s:%s\n", pwszPrefix, pwszLocalName);
+                            else
+                                wprintf(L"Element: %s\n", pwszLocalName);
+                */
+                if (FAILED(hr = WriteAttributes(pReader, pwszLocalName, _parse_element, NULL)))
+                {
+                    wprintf(L"Error writing attributes, error is %08.8lx", hr);
+                    HR(hr);
+                }
 
-            if (FAILED(hr = WriteAttributes(pReader)))
-            {
-                wprintf(L"Error writing attributes, error is %08.8lx", hr);
-                HR(hr);
-            }
-
-            if (pReader->IsEmptyElement() )
-                wprintf(L" (empty)");
-            break;
-        case XmlNodeType_EndElement:
-            if (FAILED(hr = pReader->GetPrefix(&pwszPrefix, &cwchPrefix)))
-            {
-                wprintf(L"Error getting prefix, error is %08.8lx", hr);
-                HR(hr);
-            }
-            if (FAILED(hr = pReader->GetLocalName(&pwszLocalName, NULL)))
-            {
-                wprintf(L"Error getting local name, error is %08.8lx", hr);
-                HR(hr);
-            }
-            if (cwchPrefix > 0)
-                wprintf(L"End Element: %s:%s\n", pwszPrefix, pwszLocalName);
-            else
-                wprintf(L"End Element: %s\n", pwszLocalName);
-            break;
-        case XmlNodeType_Text:
-        case XmlNodeType_Whitespace:
-            if (FAILED(hr = pReader->GetValue(&pwszValue, NULL)))
-            {
-                wprintf(L"Error getting value, error is %08.8lx", hr);
-                HR(hr);
-            }
-            wprintf(L"Text: >%s<\n", pwszValue);
-            break;
-        case XmlNodeType_CDATA:
-            if (FAILED(hr = pReader->GetValue(&pwszValue, NULL)))
-            {
-                wprintf(L"Error getting value, error is %08.8lx", hr);
-                HR(hr);
-            }
-            wprintf(L"CDATA: %s\n", pwszValue);
-            break;
-        case XmlNodeType_ProcessingInstruction:
-            if (FAILED(hr = pReader->GetLocalName(&pwszLocalName, NULL)))
-            {
-                wprintf(L"Error getting name, error is %08.8lx", hr);
-                HR(hr);
-            }
-            if (FAILED(hr = pReader->GetValue(&pwszValue, NULL)))
-            {
-                wprintf(L"Error getting value, error is %08.8lx", hr);
-                HR(hr);
-            }
-            wprintf(L"Processing Instruction name:%s value:%s\n", pwszLocalName, pwszValue);
-            break;
-        case XmlNodeType_Comment:
-            if (FAILED(hr = pReader->GetValue(&pwszValue, NULL)))
-            {
-                wprintf(L"Error getting value, error is %08.8lx", hr);
-                HR(hr);
-            }
-            wprintf(L"Comment: %s\n", pwszValue);
-            break;
-        case XmlNodeType_DocumentType:
-            wprintf(L"DOCTYPE is not printed\n");
-            break;
+                if (pReader->IsEmptyElement() )
+                    wprintf(L"Element %s (empty)\n", pwszLocalName);
+                break;
+            case XmlNodeType_EndElement:
+                if (FAILED(hr = pReader->GetPrefix(&pwszPrefix, &cwchPrefix)))
+                {
+                    wprintf(L"Error getting prefix, error is %08.8lx", hr);
+                    HR(hr);
+                }
+                if (FAILED(hr = pReader->GetLocalName(&pwszLocalName, NULL)))
+                {
+                    wprintf(L"Error getting local name, error is %08.8lx", hr);
+                    HR(hr);
+                }
+                /*
+                            if (cwchPrefix > 0)
+                                wprintf(L"End Element: %s:%s\n", pwszPrefix, pwszLocalName);
+                            else
+                                wprintf(L"End Element: %s\n", pwszLocalName);
+                */
+                hr = _element_end(pwszLocalName, NULL);
+                CHKHR(hr);
+                break;
+            case XmlNodeType_Text:
+            case XmlNodeType_Whitespace:
+                if (FAILED(hr = pReader->GetValue(&pwszValue, NULL)))
+                {
+                    wprintf(L"Error getting value, error is %08.8lx", hr);
+                    HR(hr);
+                }
+                //wprintf(L"Text: >%s<\n", pwszValue);
+                break;
+            case XmlNodeType_CDATA:
+                if (FAILED(hr = pReader->GetValue(&pwszValue, NULL)))
+                {
+                    wprintf(L"Error getting value, error is %08.8lx", hr);
+                    HR(hr);
+                }
+                wprintf(L"CDATA: %s\n", pwszValue);
+                break;
+            case XmlNodeType_ProcessingInstruction:
+                if (FAILED(hr = pReader->GetLocalName(&pwszLocalName, NULL)))
+                {
+                    wprintf(L"Error getting name, error is %08.8lx", hr);
+                    HR(hr);
+                }
+                if (FAILED(hr = pReader->GetValue(&pwszValue, NULL)))
+                {
+                    wprintf(L"Error getting value, error is %08.8lx", hr);
+                    HR(hr);
+                }
+                wprintf(L"Processing Instruction name:%s value:%s\n", pwszLocalName, pwszValue);
+                break;
+            case XmlNodeType_Comment:
+                if (FAILED(hr = pReader->GetValue(&pwszValue, NULL)))
+                {
+                    wprintf(L"Error getting value, error is %08.8lx", hr);
+                    HR(hr);
+                }
+                wprintf(L"Comment: %s\n", pwszValue);
+                break;
+            case XmlNodeType_DocumentType:
+                wprintf(L"DOCTYPE is not printed\n");
+                break;
         }
     }
 
@@ -422,4 +637,17 @@ CleanUp:
     SAFE_RELEASE(pFileStream);
     SAFE_RELEASE(pReader);
     return hr;
+
+}
+
+int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
+{
+    if (argc != 2)
+    {
+        wprintf(L"Usage: XmlLiteReader.exe name-of-input-file\n");
+        return 0;
+    }
+
+    return parse_xml(argv[1]);
+
 }
