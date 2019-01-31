@@ -65,14 +65,63 @@ typedef struct {
     size_t count;
 } DETAIL_DEF_T;
 
+typedef HRESULT (*attribute_cb)(const WCHAR* elementName,
+                                const WCHAR* LocalName,
+                                const WCHAR* Value,
+                                void *data);
+
 static double _last_detail_position_X = 0;
 
-HRESULT WriteAttributes(IXmlReader* pReader)
+
+static HRESULT _element_start(const WCHAR* ElementName, void *data)
+{
+    wprintf(L"Element start (%p) <%s ...\n", data, ElementName);
+
+    return S_OK;
+}
+
+static HRESULT _element_end(const WCHAR* ElementName, void *data)
+{
+    wprintf(L"End element </%s> (%p)\n", ElementName, data);
+
+    return S_OK;
+}
+
+static HRESULT _parse_declaration(const WCHAR* ElementName,
+                                  const WCHAR* LocalName,
+                                  const WCHAR* Value,
+                                  void *data)
+{
+    wprintf(L"declaration %s=\"%s\"> (%p)\n", LocalName, Value, data);
+
+    return S_OK;
+}
+
+static HRESULT _parse_element(const WCHAR* ElementName,
+                              const WCHAR* LocalName,
+                              const WCHAR* Value,
+                              void *data)
+{
+    wprintf(L"<%s %s=\"%s\"> (%p)\n", ElementName, LocalName, Value, data);
+
+    return S_OK;
+}
+
+HRESULT WriteAttributes(IXmlReader* pReader, const WCHAR* ElementName, attribute_cb cb, void *data)
 {
     const WCHAR* pwszPrefix;
     const WCHAR* pwszLocalName;
     const WCHAR* pwszValue;
-    HRESULT hr = pReader->MoveToFirstAttribute();
+
+    HRESULT hr = _element_start(ElementName, data);
+
+    if (S_OK != hr)
+    {
+        wprintf(L"Callback returned error (%d)\n", hr);
+        return hr;
+    }
+
+    hr = pReader->MoveToFirstAttribute();
 
     if (S_FALSE == hr)
         return hr;
@@ -83,7 +132,7 @@ HRESULT WriteAttributes(IXmlReader* pReader)
     }
     else
     {
-        while (TRUE)
+        do
         {
             if (!pReader->IsDefault())
             {
@@ -103,15 +152,23 @@ HRESULT WriteAttributes(IXmlReader* pReader)
                     wprintf(L"Error getting value, error is %08.8lx", hr);
                     return hr;
                 }
+/*
                 if (cwchPrefix > 0)
-                    wprintf(L"Attr: %s:%s=\"%s\" \n", pwszPrefix, pwszLocalName, pwszValue);
+                    wprintf(L"%s Attr: %s:%s=\"%s\" \n", ElementName, pwszPrefix, pwszLocalName, pwszValue);
                 else
-                    wprintf(L"Attr: %s=\"%s\" \n", pwszLocalName, pwszValue);
+                    wprintf(L"%s Attr: %s=\"%s\" \n", ElementName, pwszLocalName, pwszValue);
+*/
+                if (cb)
+                {
+                    hr = cb(ElementName, pwszLocalName, pwszValue, data);
+                    if (hr != S_OK)
+                    {
+                        wprintf(L"Callback returned error (%d)\n", hr);
+                        return hr;
+                    }
+                }
             }
-
-            if (S_OK != pReader->MoveToNextAttribute())
-                break;
-        }
+        } while (pReader->MoveToNextAttribute() == S_OK);
     }
     return hr;
 }
@@ -325,7 +382,7 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
         {
         case XmlNodeType_XmlDeclaration:
             wprintf(L"XmlDeclaration\n");
-            if (FAILED(hr = WriteAttributes(pReader)))
+            if (FAILED(hr = WriteAttributes(pReader, L"Declaration", _parse_declaration, NULL)))
             {
                 wprintf(L"Error writing attributes, error is %08.8lx", hr);
                 HR(hr);
@@ -342,19 +399,20 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
                 wprintf(L"Error getting local name, error is %08.8lx", hr);
                 HR(hr);
             }
+/*
             if (cwchPrefix > 0)
                 wprintf(L"Element: %s:%s\n", pwszPrefix, pwszLocalName);
             else
                 wprintf(L"Element: %s\n", pwszLocalName);
-
-            if (FAILED(hr = WriteAttributes(pReader)))
+*/
+            if (FAILED(hr = WriteAttributes(pReader, pwszLocalName, _parse_element, NULL)))
             {
                 wprintf(L"Error writing attributes, error is %08.8lx", hr);
                 HR(hr);
             }
 
             if (pReader->IsEmptyElement() )
-                wprintf(L" (empty)");
+                wprintf(L"Element %s (empty)\n", pwszLocalName);
             break;
         case XmlNodeType_EndElement:
             if (FAILED(hr = pReader->GetPrefix(&pwszPrefix, &cwchPrefix)))
@@ -367,10 +425,14 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
                 wprintf(L"Error getting local name, error is %08.8lx", hr);
                 HR(hr);
             }
+/*
             if (cwchPrefix > 0)
                 wprintf(L"End Element: %s:%s\n", pwszPrefix, pwszLocalName);
             else
                 wprintf(L"End Element: %s\n", pwszLocalName);
+*/
+            hr = _element_end(pwszLocalName, NULL);
+            CHKHR(hr);
             break;
         case XmlNodeType_Text:
         case XmlNodeType_Whitespace:
@@ -379,7 +441,7 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
                 wprintf(L"Error getting value, error is %08.8lx", hr);
                 HR(hr);
             }
-            wprintf(L"Text: >%s<\n", pwszValue);
+            //wprintf(L"Text: >%s<\n", pwszValue);
             break;
         case XmlNodeType_CDATA:
             if (FAILED(hr = pReader->GetValue(&pwszValue, NULL)))
