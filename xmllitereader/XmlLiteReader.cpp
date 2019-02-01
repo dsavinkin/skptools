@@ -60,53 +60,7 @@
 /***************************************************************/
 
 typedef enum {
-    ELEMENT_PROJECT,
-    ELEMENT_VIYAR,
-    ELEMENT_USER,
-    ELEMENT_ORDER,
-    ELEMENT_CONSTRUCTOR,
-    ELEMENT_MATERIALS,
-    ELEMENT_MATERIAL,
-    ELEMENT_PARTS,
-    ELEMENT_DETAILS,
-    ELEMENT_DETAIL,
-    ELEMENT_EDGES,
-    ELEMENT_LEFT,
-    ELEMENT_RIGHT,
-    ELEMENT_TOP,
-    ELEMENT_BOTTOM,
-    ELEMENT_OPERATIONS,
-    ELEMENT_OPERATION,
-    ELEMENT_PRODUCTS,
-    ELEMENT_UNKNOWN,
-    MAX_ELEMENTS
-} ELEMENTS_T;
-
-const WCHAR *elements_str[MAX_ELEMENTS] = {
-    L"project",
-    L"viyar",
-    L"user",
-    L"order",
-    L"constructor",
-    L"materials",
-    L"material",
-    L"parts",
-    L"details",
-    L"detail",
-    L"edges",
-    L"left",
-    L"right",
-    L"top",
-    L"bottom",
-    L"operations",
-    L"operation",
-    L"products",
-    L"unknown"
-};
-
-typedef enum {
     STATE_ROOT = 0,
-
     STATE_MATERIALS,
     STATE_DETAILS,
     STATE_MAX
@@ -117,7 +71,6 @@ typedef enum {
     MODEL_OPENED,
     MODEL_CLOSED,
 } MODEL_STATE_T;
-
 
 typedef enum {
     SIDE_UNDEFINED = 0,
@@ -130,12 +83,21 @@ typedef enum {
 } SIDES_T;
 
 typedef struct {
-    char* name;
+    char *name;
+    char *description;
+    int material_id;
     double width;
     double height;
     double thickness;
+    int multiplicity;
     size_t amount;
 } DETAIL_DEF_T;
+
+typedef enum {
+    DETAIL_ATTR,
+    DETAIL_EDGES,
+    DETAIL_OPERATIONS
+} DETAIL_STATE_T;
 
 typedef enum {
     TYPE_UNDEFINED = 0,
@@ -168,6 +130,18 @@ static DETAIL_DEF_T details[100];
 static int _materials_cnt = 0;
 static MATERIAL_DEF_T materials[10];
 
+static HRESULT _model_open_create()
+{
+    wprintf(L"TODO: create/read Model\n");
+    return S_OK;
+}
+
+static HRESULT _model_save_close()
+{
+    wprintf(L"TODO: save/close Model\n");
+    return S_OK;
+}
+
 static HRESULT _element_start(const WCHAR* ElementName, void *data)
 {
     wprintf(L"S %d: Element start (%p) <%s ...\n", _state, data, ElementName);
@@ -180,7 +154,7 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                 if (_model_state == MODEL_NONE)
                 {
                     _model_state = MODEL_OPENED;
-                    wprintf(L"TODO: create/read Model\n");
+                    _model_open_create();
                 }
             }
             else if (wcscmp(ElementName, L"materials") == 0)
@@ -252,7 +226,7 @@ static HRESULT _element_end(const WCHAR* ElementName, void *data)
                 if (_model_state == MODEL_OPENED)
                 {
                     _model_state = MODEL_CLOSED;
-                    wprintf(L"TODO: save/close Model\n");
+                    _model_save_close();
                 }
             }
             break;
@@ -349,7 +323,7 @@ static HRESULT _parse_material(const WCHAR* ElementName,
     else if (wcscmp(LocalName, L"markingColor") == 0)
     {
         int red, green, blue;
-        if (swscanf(Value, L"rgb(%d,%d,%d)", &red, &green, &blue) != 3)
+        if (swscanf_s(Value, L"rgb(%d,%d,%d)", &red, &green, &blue) != 3)
         {
             PARSE_FAIL(E_ABORT);
         }
@@ -360,7 +334,7 @@ static HRESULT _parse_material(const WCHAR* ElementName,
     }
     else
     {
-        wprintf(L"Ignore attribute material (%d) %s=\"%s\"\n", _materials_cnt, LocalName, Value);
+        //wprintf(L"Ignore attribute material (%d) %s=\"%s\"\n", _materials_cnt, LocalName, Value);
         return S_FALSE;
     }
 
@@ -372,14 +346,93 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                              const WCHAR* Value,
                              void *data)
 {
+    if (wcscmp(ElementName, L"details") == 0)
+    {
+        //Skip <details> attributes
+        return S_FALSE;
+    }
 
-    if ((wcscmp(ElementName, L"detail") == 0) &&
-        (_details_cnt < 1))
+    if (_details_cnt < 1)
     {
         PARSE_FAIL(E_ABORT);
     }
 
-    wprintf(L"detail %d <%s: %s=\"%s\"> (%p)\n", _details_cnt, ElementName, LocalName, Value, data);
+    DETAIL_DEF_T *d = &details[_details_cnt-1];
+
+    if (wcscmp(ElementName, L"detail") == 0)
+    {
+        if (wcscmp(LocalName, L"id") == 0)
+        {
+            if (_wtol(Value) != _details_cnt)
+            {
+                PARSE_FAIL(E_ABORT);
+            }
+        }
+        else if (wcscmp(LocalName, L"material") == 0)
+        {
+            d->material_id = _wtol(Value);
+            if ((d->material_id <= 0) || (d->material_id > _materials_cnt))
+            {
+                PARSE_FAIL(E_ABORT);
+            }
+
+            // TODO: update thickness after reading multiplier
+            d->thickness = materials[d->material_id].thickness;
+        }
+        else if (wcscmp(LocalName, L"amount") == 0)
+        {
+            d->amount = _wtol(Value);
+            if (d->amount <= 0)
+            {
+                wprintf(L"Warning: %s = %s\n", LocalName, Value);
+            }
+        }
+        else if (wcscmp(LocalName, L"width") == 0)
+        {
+            d->width = _wtol(Value);
+            if (d->width <= 0)
+            {
+                PARSE_FAIL(E_ABORT);
+            }
+        }
+        else if (wcscmp(LocalName, L"height") == 0)
+        {
+            d->height = _wtol(Value);
+            if (d->height <= 0)
+            {
+                PARSE_FAIL(E_ABORT);
+            }
+        }
+        else if (wcscmp(LocalName, L"multiplicity") == 0)
+        {
+            d->multiplicity = _wtol(Value);
+            if (d->multiplicity <= 0)
+            {
+                PARSE_FAIL(E_ABORT);
+            }
+        }
+        else if (wcscmp(LocalName, L"description") == 0)
+        {
+            //TODO: d->description = wstrdup(Value);
+        }
+        else if (wcscmp(LocalName, L"grain") == 0)
+        {
+            //Always "1" in my files
+            if (wcscmp(Value, L"1") != 0)
+            {
+                PARSE_FAIL(E_ABORT);
+            }
+        }
+        else
+        {
+            wprintf(L"Ignore attribute %s (%d) %s=\"%s\"\n", ElementName, _details_cnt, LocalName, Value);
+            return S_FALSE;
+        }
+    }
+    else
+    {
+        wprintf(L"detail %d <%s: %s=\"%s\"> (%p)\n", _details_cnt, ElementName, LocalName, Value, data);
+    }
 
 
     return S_OK;
@@ -606,6 +659,7 @@ int write_new_model()
 
     DETAIL_DEF_T detail;
     detail.name = "detail 1";
+    detail.description = "detail number 1";
     detail.width = 70;
     detail.height = 360;
     detail.thickness = 18;
@@ -614,6 +668,7 @@ int write_new_model()
     _create_detail_components(model, &detail);
 
     detail.name = "detail 2";
+    detail.description = "detail number 2";
     detail.width = 270;
     detail.height = 160;
     detail.thickness = 18;
@@ -784,7 +839,10 @@ int parse_xml(const WCHAR* xmlfilename)
         }
     }
 
+    // TODO: remove this call
     hr = write_new_model();
+
+    CHKHR(_model_state == MODEL_CLOSED ? S_OK : E_ABORT);
 
 CleanUp:
     SAFE_RELEASE(pFileStream);
