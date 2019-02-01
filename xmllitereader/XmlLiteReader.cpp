@@ -42,7 +42,7 @@
 #define HR(stmt)                do { hr = (stmt); printf("HR line %d\n", __LINE__);goto CleanUp; } while(0)
 #define SAFE_RELEASE(I)         do { if (I){ I->Release(); } I = NULL; } while(0)
 
-#define PARSE_FAIL(ret)                do { printf("HR line %d\n", __LINE__); return (ret); } while(0)
+#define PARSE_FAIL(ret)                do { printf("PARSE_FAIL line %d\n", __LINE__); return (ret); } while(0)
 
 
 #define MM2INCH(x) ((x)/25.4)
@@ -120,6 +120,7 @@ typedef enum {
 
 
 typedef enum {
+    SIDE_UNDEFINED = 0,
     SIDE_FRONT,
     SIDE_LEFT,
     SIDE_TOP,
@@ -137,6 +138,7 @@ typedef struct {
 } DETAIL_DEF_T;
 
 typedef enum {
+    TYPE_UNDEFINED = 0,
     TYPE_SHEET,
     TYPE_BAND
 } MATERIAL_TYPE_T;
@@ -210,6 +212,7 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
         case STATE_MATERIALS:
             if (wcscmp(ElementName, L"material") == 0)
             {
+                _materials_cnt++;
                 wprintf(L"TODO: (%d) start adding material\n", _materials_cnt);
             }
             else
@@ -221,6 +224,7 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
         case STATE_DETAILS:
             if (wcscmp(ElementName, L"detail") == 0)
             {
+                _details_cnt++;
                 wprintf(L"TODO: (%d) start adding detail\n", _details_cnt);
             }
             else
@@ -258,7 +262,7 @@ static HRESULT _element_end(const WCHAR* ElementName, void *data)
             if (wcscmp(ElementName, L"material") == 0)
             {
                 wprintf(L"TODO: add material (%d) to Model\n", _materials_cnt);
-                _materials_cnt++;
+
             }
             else if (wcscmp(ElementName, L"materials") == 0)
             {
@@ -270,7 +274,6 @@ static HRESULT _element_end(const WCHAR* ElementName, void *data)
             if (wcscmp(ElementName, L"detail") == 0)
             {
                 wprintf(L"TODO: add detail (%d) to Model\n", _details_cnt);
-                _details_cnt++;
             }
             else if (wcscmp(ElementName, L"details") == 0)
             {
@@ -295,6 +298,94 @@ static HRESULT _parse_declaration(const WCHAR* ElementName,
     return S_OK;
 }
 
+static HRESULT _parse_material(const WCHAR* ElementName,
+                               const WCHAR* LocalName,
+                               const WCHAR* Value,
+                               void *data)
+{
+    if (_materials_cnt < 1)
+    {
+        PARSE_FAIL(E_ABORT);
+    }
+
+    if (wcscmp(ElementName, L"material") != 0)
+    {
+        return S_FALSE;
+    }
+
+    //wprintf(L"material (%d) %s=\"%s\"\n", _materials_cnt, LocalName, Value);
+    MATERIAL_DEF_T *m = &materials[_materials_cnt-1];
+
+    if (wcscmp(LocalName, L"id") == 0)
+    {
+        if (_wtol(Value) != _materials_cnt)
+        {
+            PARSE_FAIL(E_ABORT);
+        }
+    }
+    else if (wcscmp(LocalName, L"type") == 0)
+    {
+        if (wcscmp(Value, L"sheet") == 0)
+        {
+            m->type = TYPE_SHEET;
+        }
+        else if (wcscmp(Value, L"band") == 0)
+        {
+            m->type = TYPE_BAND;
+        }
+        else
+        {
+            PARSE_FAIL(E_ABORT);
+        }
+    }
+    else if (wcscmp(LocalName, L"thickness") == 0)
+    {
+        m->thickness = _wtof(Value);
+        if (m->thickness == 0.0)
+        {
+            PARSE_FAIL(E_ABORT);
+        }
+    }
+    else if (wcscmp(LocalName, L"markingColor") == 0)
+    {
+        int red, green, blue;
+        if (swscanf(Value, L"rgb(%d,%d,%d)", &red, &green, &blue) != 3)
+        {
+            PARSE_FAIL(E_ABORT);
+        }
+
+        m->markingColor = red;
+        m->markingColor = (m->markingColor << 8) + green;
+        m->markingColor = (m->markingColor << 8) + blue;
+    }
+    else
+    {
+        wprintf(L"Ignore attribute material (%d) %s=\"%s\"\n", _materials_cnt, LocalName, Value);
+        return S_FALSE;
+    }
+
+    return S_OK;
+}
+
+static HRESULT _parse_detail(const WCHAR* ElementName,
+                             const WCHAR* LocalName,
+                             const WCHAR* Value,
+                             void *data)
+{
+
+    if ((wcscmp(ElementName, L"detail") == 0) &&
+        (_details_cnt < 1))
+    {
+        PARSE_FAIL(E_ABORT);
+    }
+
+    wprintf(L"detail %d <%s: %s=\"%s\"> (%p)\n", _details_cnt, ElementName, LocalName, Value, data);
+
+
+    return S_OK;
+}
+
+
 static HRESULT _parse_element(const WCHAR* ElementName,
                               const WCHAR* LocalName,
                               const WCHAR* Value,
@@ -302,7 +393,21 @@ static HRESULT _parse_element(const WCHAR* ElementName,
 {
     //wprintf(L"<%s %s=\"%s\"> (%p)\n", ElementName, LocalName, Value, data);
 
-    return S_OK;
+    if (_state == STATE_MATERIALS)
+    {
+        return _parse_material(ElementName, LocalName, Value, data);
+    }
+    else if (_state == STATE_DETAILS)
+    {
+        return _parse_detail(ElementName, LocalName, Value, data);
+    }
+    else if (_state == STATE_ROOT)
+    {
+        //return S_FALSE in ROOT state
+        return S_FALSE;
+    }
+
+    PARSE_FAIL(E_ABORT);
 }
 
 HRESULT WriteAttributes(IXmlReader* pReader, const WCHAR* ElementName, attribute_cb cb, void *data)
