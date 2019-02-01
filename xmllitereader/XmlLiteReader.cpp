@@ -90,6 +90,7 @@ typedef struct {
     double height;
     double thickness;
     int multiplicity;
+	int grain;
     size_t amount;
 } DETAIL_DEF_T;
 
@@ -455,11 +456,7 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                 }
                 else if (wcscmp(LocalName, L"grain") == 0)
                 {
-                    //Always "1" in my files
-                    if (wcscmp(Value, L"1") != 0)
-                    {
-                        PARSE_FAIL(E_ABORT);
-                    }
+					d->grain = _wtol(Value);
                 }
                 else
                 {
@@ -714,7 +711,10 @@ static void _create_detail_components(SUModelRef model,
 
     SUComponentDefinitionRef definition = SU_INVALID;
     SU_CALL(SUComponentDefinitionCreate(&definition));
-    SU_CALL(SUComponentDefinitionSetName(definition, detail_def->name));
+	if (detail_def->name != NULL)
+	{
+		SU_CALL(SUComponentDefinitionSetName(definition, detail_def->name));
+	}
     SU_CALL(SUModelAddComponentDefinitions(model, 1, &definition));
 
     // Add instance for this definition
@@ -769,25 +769,12 @@ int write_new_model()
     SUModelRef model = SU_INVALID;
     SU_CALL(SUModelCreate(&model));
 
-    DETAIL_DEF_T detail;
-    detail.name = "detail 1";
-    detail.description = "detail number 1";
-    detail.width = 70;
-    detail.height = 360;
-    detail.thickness = 18;
-    detail.amount = 5;
-
-    _create_detail_components(model, &detail);
-
-    detail.name = "detail 2";
-    detail.description = "detail number 2";
-    detail.width = 270;
-    detail.height = 160;
-    detail.thickness = 18;
-    detail.amount = 3;
-
-    _create_detail_components(model, &detail);
-
+	for (size_t i = 0; i < _details_cnt; i++)
+	{
+		printf("Detail %zd:\n", i);
+		_dump_detail(&details[i]);
+		_create_detail_components(model, &details[i]);
+	}
 
     // Save the in-memory model to a file
     SU_CALL(SUModelSaveToFile(model, "new_model.skp"));
@@ -951,12 +938,13 @@ int parse_xml(const WCHAR* xmlfilename)
         }
     }
 
+#if 0
     for (size_t i = 0; i < _details_cnt; i++)
     {
         printf("Detail %zd:\n", i);
         _dump_detail(&details[i]);
     }
-
+#endif
     // TODO: remove this call
     hr = write_new_model();
 
