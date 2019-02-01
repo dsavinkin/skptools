@@ -33,6 +33,10 @@
 #include <SketchUpAPI/model/group.h>
 #include <vector>
 
+/***************************************************************/
+/*                     Local Definitions                       */
+/***************************************************************/
+
 #pragma warning(disable : 4127)  // conditional expression is constant
 #define CHKHR(stmt)             do { hr = (stmt); if (FAILED(hr)) goto CleanUp; } while(0)
 #define HR(stmt)                do { hr = (stmt); printf("HR line %d\n", __LINE__);goto CleanUp; } while(0)
@@ -50,6 +54,10 @@
 
 #define DISTANCE_X 50 //mm
 #define DISTANCE_Z 3 //*thickness
+
+/***************************************************************/
+/*                       Local Types                           */
+/***************************************************************/
 
 typedef enum {
     ELEMENT_PROJECT,
@@ -128,16 +136,35 @@ typedef struct {
     size_t amount;
 } DETAIL_DEF_T;
 
-static VIYAR_STATE_T _state = STATE_ROOT;
-static MODEL_STATE_T _model_state = MODEL_NONE;
+typedef enum {
+    TYPE_SHEET,
+    TYPE_BAND
+} MATERIAL_TYPE_T;
+
+typedef struct {
+    MATERIAL_TYPE_T type;
+    double thickness;
+    int markingColor;
+} MATERIAL_DEF_T;
 
 typedef HRESULT (*attribute_cb)(const WCHAR* elementName,
                                 const WCHAR* LocalName,
                                 const WCHAR* Value,
                                 void *data);
 
+/***************************************************************/
+/*                     Local Variables                         */
+/***************************************************************/
+
+static VIYAR_STATE_T _state = STATE_ROOT;
+static MODEL_STATE_T _model_state = MODEL_NONE;
 static double _last_detail_position_X = 0;
 
+static int _details_cnt = 0;
+static DETAIL_DEF_T details[100];
+
+static int _materials_cnt = 0;
+static MATERIAL_DEF_T materials[10];
 
 static HRESULT _element_start(const WCHAR* ElementName, void *data)
 {
@@ -161,6 +188,8 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                     PARSE_FAIL(E_ABORT);
                 }
                 _state = STATE_MATERIALS;
+                _materials_cnt = 0;
+                memset(materials, 0, sizeof(materials));
             }
             else if (wcscmp(ElementName, L"details") == 0)
             {
@@ -169,6 +198,8 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                     PARSE_FAIL(E_ABORT);
                 }
                 _state = STATE_DETAILS;
+                _details_cnt = 0;
+                memset(details, 0, sizeof(details));
             }
             else
             {
@@ -179,22 +210,22 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
         case STATE_MATERIALS:
             if (wcscmp(ElementName, L"material") == 0)
             {
-                wprintf(L"TODO: start adding materials\n");
+                wprintf(L"TODO: (%d) start adding material\n", _materials_cnt);
             }
             else
             {
-                wprintf(L"TODO: (%s) continue updating materials\n", ElementName);
+                wprintf(L"TODO: (%d:%s) continue updating material\n", _materials_cnt, ElementName);
             }
             break;
 
         case STATE_DETAILS:
             if (wcscmp(ElementName, L"detail") == 0)
             {
-                wprintf(L"TODO: start adding details\n");
+                wprintf(L"TODO: (%d) start adding detail\n", _details_cnt);
             }
             else
             {
-                wprintf(L"TODO: (%s) continue updating details\n", ElementName);
+                wprintf(L"TODO: (%d:%s) continue updating detail\n", _details_cnt, ElementName);
             }
             break;
 
@@ -223,7 +254,13 @@ static HRESULT _element_end(const WCHAR* ElementName, void *data)
             break;
 
         case STATE_MATERIALS:
-            if (wcscmp(ElementName, L"materials") == 0)
+
+            if (wcscmp(ElementName, L"material") == 0)
+            {
+                wprintf(L"TODO: add material (%d) to Model\n", _materials_cnt);
+                _materials_cnt++;
+            }
+            else if (wcscmp(ElementName, L"materials") == 0)
             {
                 _state = STATE_ROOT;
             }
@@ -232,7 +269,8 @@ static HRESULT _element_end(const WCHAR* ElementName, void *data)
         case STATE_DETAILS:
             if (wcscmp(ElementName, L"detail") == 0)
             {
-                wprintf(L"TODO: add detail to Model\n");
+                wprintf(L"TODO: add detail (%d) to Model\n", _details_cnt);
+                _details_cnt++;
             }
             else if (wcscmp(ElementName, L"details") == 0)
             {
@@ -528,6 +566,8 @@ int parse_xml(const WCHAR* xmlfilename)
         HR(hr);
     }
 
+    BOOL is_empty = FALSE;
+
     //read until there are no more nodes
     while (S_OK == (hr = pReader->Read(&nodeType)))
     {
@@ -558,14 +598,22 @@ int parse_xml(const WCHAR* xmlfilename)
                             else
                                 wprintf(L"Element: %s\n", pwszLocalName);
                 */
+
+                // for empty elements call _element_end after parsing attributes
+                is_empty = pReader->IsEmptyElement();
+
                 if (FAILED(hr = WriteAttributes(pReader, pwszLocalName, _parse_element, NULL)))
                 {
                     wprintf(L"Error writing attributes, error is %08.8lx", hr);
                     HR(hr);
                 }
 
-                if (pReader->IsEmptyElement() )
-                    wprintf(L"Element %s (empty)\n", pwszLocalName);
+                if (is_empty)
+                {
+                    hr = _element_end(pwszLocalName, NULL);
+                    CHKHR(hr);
+                }
+
                 break;
             case XmlNodeType_EndElement:
                 if (FAILED(hr = pReader->GetPrefix(&pwszPrefix, &cwchPrefix)))
