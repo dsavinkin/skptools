@@ -131,6 +131,24 @@ static DETAIL_DEF_T details[100];
 static int _materials_cnt = 0;
 static MATERIAL_DEF_T materials[10];
 
+/***************************************************************/
+/*                     Local Functions                         */
+/***************************************************************/
+
+void _dump_detail(DETAIL_DEF_T *d)
+{
+    if (!d)
+    {
+        return;
+    }
+
+    printf("name:        %s\n", d->name);
+    printf("description: %s\n", d->description);
+    printf("size:        %f/%f/%f\n", d->width, d->height, d->thickness);
+    printf("amount:      %zd\n", d->amount);
+}
+
+
 static HRESULT _model_open_create()
 {
     wprintf(L"TODO: create/read Model\n");
@@ -381,11 +399,6 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
         case DETAIL_ATTR:
             if (wcscmp(ElementName, L"detail") == 0)
             {
-                if (_detail_state != DETAIL_ATTR)
-                {
-                    PARSE_FAIL(E_ABORT);
-                }
-
                 if (wcscmp(LocalName, L"id") == 0)
                 {
                     if (_wtol(Value) != _details_cnt)
@@ -400,9 +413,9 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                     {
                         PARSE_FAIL(E_ABORT);
                     }
-
                     // TODO: update thickness after reading multiplier
-                    d->thickness = materials[d->material_id].thickness;
+                    MATERIAL_DEF_T *m = &materials[d->material_id-1];
+                    d->thickness = m->thickness;
                 }
                 else if (wcscmp(LocalName, L"amount") == 0)
                 {
@@ -414,16 +427,16 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                 }
                 else if (wcscmp(LocalName, L"width") == 0)
                 {
-                    d->width = _wtol(Value);
-                    if (d->width <= 0)
+                    d->width = _wtof(Value);
+                    if (d->width <= 0.0)
                     {
                         PARSE_FAIL(E_ABORT);
                     }
                 }
                 else if (wcscmp(LocalName, L"height") == 0)
                 {
-                    d->height = _wtol(Value);
-                    if (d->height <= 0)
+                    d->height = _wtof(Value);
+                    if (d->height <= 0.0)
                     {
                         PARSE_FAIL(E_ABORT);
                     }
@@ -478,12 +491,36 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                      (wcscmp(ElementName, L"right") == 0) ||
                      (wcscmp(ElementName, L"bottom") == 0))
             {
-                if (_detail_state != DETAIL_EDGES)
+                if (wcscmp(LocalName, L"type") == 0)
                 {
-                    PARSE_FAIL(E_ABORT);
+                    //Limit kromka and empty only for now
+                    if ((wcscmp(Value, L"kromka") != 0) &&
+                            (wcscmp(Value, L"") != 0))
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
                 }
-
-                // TODO: add edges
+                else if (wcscmp(LocalName, L"param") == 0)
+                {
+                    int material_id = _wtol(Value);
+                    if (material_id < 0)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                    else
+                    {
+                        MATERIAL_DEF_T *m = &materials[material_id-1];
+                        if ((wcscmp(ElementName, L"top") == 0) ||
+                            (wcscmp(ElementName, L"bottom") == 0))
+                        {
+                            d->height += m->thickness;
+                        }
+                        else
+                        {
+                            d->width += m->thickness;
+                        }
+                    }
+                }
             }
             else
             {
@@ -499,10 +536,6 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
             }
             else if (wcscmp(ElementName, L"operation") == 0)
             {
-                if (_detail_state != DETAIL_OPERATIONS)
-                {
-                    PARSE_FAIL(E_ABORT);
-                }
 
                 // TODO: add operations
             }
@@ -916,6 +949,12 @@ int parse_xml(const WCHAR* xmlfilename)
                 wprintf(L"DOCTYPE is not printed\n");
                 break;
         }
+    }
+
+    for (size_t i = 0; i < _details_cnt; i++)
+    {
+        printf("Detail %zd:\n", i);
+        _dump_detail(&details[i]);
     }
 
     // TODO: remove this call
