@@ -144,7 +144,7 @@ void _dump_detail(DETAIL_DEF_T *d)
 
     printf("name:        %s\n", d->name);
     printf("description: %s\n", d->description);
-    printf("size:        %f/%f/%f\n", d->width, d->height, d->thickness);
+    printf("size:        %.1f/%.1f/%.1f\n", d->width, d->height, d->thickness);
     printf("amount:      %zd\n", d->amount);
 }
 
