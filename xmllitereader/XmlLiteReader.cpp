@@ -122,6 +122,7 @@ typedef HRESULT (*attribute_cb)(const WCHAR* elementName,
 
 static VIYAR_STATE_T _state = STATE_ROOT;
 static MODEL_STATE_T _model_state = MODEL_NONE;
+static DETAIL_STATE_T _detail_state = DETAIL_ATTR;
 static double _last_detail_position_X = 0;
 
 static int _details_cnt = 0;
@@ -199,11 +200,25 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
             if (wcscmp(ElementName, L"detail") == 0)
             {
                 _details_cnt++;
-                wprintf(L"TODO: (%d) start adding detail\n", _details_cnt);
+                _detail_state = DETAIL_ATTR;
+                wprintf(L"_detail_state = DETAIL_ATTR\n");
+//                wprintf(L"TODO: (%d) start adding detail\n", _details_cnt);
             }
             else
             {
                 wprintf(L"TODO: (%d:%s) continue updating detail\n", _details_cnt, ElementName);
+
+                if (wcscmp(ElementName, L"edges") == 0)
+                {
+                    _detail_state = DETAIL_EDGES;
+                    wprintf(L"_detail_state = DETAIL_EDGES\n");
+                }
+                else if (wcscmp(ElementName, L"operations") == 0)
+                {
+                    _detail_state = DETAIL_OPERATIONS;
+                    wprintf(L"_detail_state = DETAIL_OPERATIONS\n");
+                }
+
             }
             break;
 
@@ -359,81 +374,145 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
 
     DETAIL_DEF_T *d = &details[_details_cnt-1];
 
-    if (wcscmp(ElementName, L"detail") == 0)
-    {
-        if (wcscmp(LocalName, L"id") == 0)
-        {
-            if (_wtol(Value) != _details_cnt)
-            {
-                PARSE_FAIL(E_ABORT);
-            }
-        }
-        else if (wcscmp(LocalName, L"material") == 0)
-        {
-            d->material_id = _wtol(Value);
-            if ((d->material_id <= 0) || (d->material_id > _materials_cnt))
-            {
-                PARSE_FAIL(E_ABORT);
-            }
+    wprintf(L"detail %d:%d <%s: %s=\"%s\"> (%p)\n", _details_cnt, _detail_state, ElementName, LocalName, Value, data);
 
-            // TODO: update thickness after reading multiplier
-            d->thickness = materials[d->material_id].thickness;
-        }
-        else if (wcscmp(LocalName, L"amount") == 0)
-        {
-            d->amount = _wtol(Value);
-            if (d->amount <= 0)
-            {
-                wprintf(L"Warning: %s = %s\n", LocalName, Value);
-            }
-        }
-        else if (wcscmp(LocalName, L"width") == 0)
-        {
-            d->width = _wtol(Value);
-            if (d->width <= 0)
-            {
-                PARSE_FAIL(E_ABORT);
-            }
-        }
-        else if (wcscmp(LocalName, L"height") == 0)
-        {
-            d->height = _wtol(Value);
-            if (d->height <= 0)
-            {
-                PARSE_FAIL(E_ABORT);
-            }
-        }
-        else if (wcscmp(LocalName, L"multiplicity") == 0)
-        {
-            d->multiplicity = _wtol(Value);
-            if (d->multiplicity <= 0)
-            {
-                PARSE_FAIL(E_ABORT);
-            }
-        }
-        else if (wcscmp(LocalName, L"description") == 0)
-        {
-            //TODO: d->description = wstrdup(Value);
-        }
-        else if (wcscmp(LocalName, L"grain") == 0)
-        {
-            //Always "1" in my files
-            if (wcscmp(Value, L"1") != 0)
-            {
-                PARSE_FAIL(E_ABORT);
-            }
-        }
-        else
-        {
-            wprintf(L"Ignore attribute %s (%d) %s=\"%s\"\n", ElementName, _details_cnt, LocalName, Value);
-            return S_FALSE;
-        }
-    }
-    else
+    switch (_detail_state)
     {
-        wprintf(L"detail %d <%s: %s=\"%s\"> (%p)\n", _details_cnt, ElementName, LocalName, Value, data);
-    }
+        case DETAIL_ATTR:
+            if (wcscmp(ElementName, L"detail") == 0)
+            {
+                if (_detail_state != DETAIL_ATTR)
+                {
+                    PARSE_FAIL(E_ABORT);
+                }
 
+                if (wcscmp(LocalName, L"id") == 0)
+                {
+                    if (_wtol(Value) != _details_cnt)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                }
+                else if (wcscmp(LocalName, L"material") == 0)
+                {
+                    d->material_id = _wtol(Value);
+                    if ((d->material_id <= 0) || (d->material_id > _materials_cnt))
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+
+                    // TODO: update thickness after reading multiplier
+                    d->thickness = materials[d->material_id].thickness;
+                }
+                else if (wcscmp(LocalName, L"amount") == 0)
+                {
+                    d->amount = _wtol(Value);
+                    if (d->amount <= 0)
+                    {
+                        wprintf(L"Warning: %s = %s\n", LocalName, Value);
+                    }
+                }
+                else if (wcscmp(LocalName, L"width") == 0)
+                {
+                    d->width = _wtol(Value);
+                    if (d->width <= 0)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                }
+                else if (wcscmp(LocalName, L"height") == 0)
+                {
+                    d->height = _wtol(Value);
+                    if (d->height <= 0)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                }
+                else if (wcscmp(LocalName, L"multiplicity") == 0)
+                {
+                    d->multiplicity = _wtol(Value);
+                    if (d->multiplicity <= 0)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                }
+                else if (wcscmp(LocalName, L"description") == 0)
+                {
+                    //TODO: d->description = wstrdup(Value);
+                }
+                else if (wcscmp(LocalName, L"grain") == 0)
+                {
+                    //Always "1" in my files
+                    if (wcscmp(Value, L"1") != 0)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                }
+                else
+                {
+                    wprintf(L"Ignore attribute %s (%d) %s=\"%s\"\n", ElementName, _details_cnt, LocalName, Value);
+                    return S_FALSE;
+                }
+            }
+            else
+            {
+                wprintf(L"Ignore detail element %s (%d) %s=\"%s\"\n", ElementName, _details_cnt, LocalName, Value);
+                return S_FALSE;
+            }
+            break;
+
+        case DETAIL_EDGES:
+            if (wcscmp(ElementName, L"edges") == 0)
+            {
+                if (wcscmp(LocalName, L"joint") == 0)
+                {
+                    //Always "0" in my files
+                    if (wcscmp(Value, L"0") != 0)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                }
+            }
+            else if ((wcscmp(ElementName, L"left") == 0) ||
+                     (wcscmp(ElementName, L"top") == 0) ||
+                     (wcscmp(ElementName, L"right") == 0) ||
+                     (wcscmp(ElementName, L"bottom") == 0))
+            {
+                if (_detail_state != DETAIL_EDGES)
+                {
+                    PARSE_FAIL(E_ABORT);
+                }
+
+                // TODO: add edges
+            }
+            else
+            {
+                wprintf(L"Ignore detail element %s (%d) %s=\"%s\"\n", ElementName, _details_cnt, LocalName, Value);
+                return S_FALSE;
+            }
+            break;
+
+        case DETAIL_OPERATIONS:
+            if (wcscmp(ElementName, L"operations") == 0)
+            {
+                // No attributes
+            }
+            else if (wcscmp(ElementName, L"operation") == 0)
+            {
+                if (_detail_state != DETAIL_OPERATIONS)
+                {
+                    PARSE_FAIL(E_ABORT);
+                }
+
+                // TODO: add operations
+            }
+            else
+            {
+                wprintf(L"Ignore detail element %s (%d) %s=\"%s\"\n", ElementName, _details_cnt, LocalName, Value);
+                return S_FALSE;
+            }
+            break;
+    }
 
     return S_OK;
 }
