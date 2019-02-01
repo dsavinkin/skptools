@@ -33,12 +33,16 @@
 #include <SketchUpAPI/model/group.h>
 #include <vector>
 
+/***************************************************************/
+/*                     Local Definitions                       */
+/***************************************************************/
+
 #pragma warning(disable : 4127)  // conditional expression is constant
 #define CHKHR(stmt)             do { hr = (stmt); if (FAILED(hr)) goto CleanUp; } while(0)
 #define HR(stmt)                do { hr = (stmt); printf("HR line %d\n", __LINE__);goto CleanUp; } while(0)
 #define SAFE_RELEASE(I)         do { if (I){ I->Release(); } I = NULL; } while(0)
 
-#define PARSE_FAIL(ret)                do { printf("HR line %d\n", __LINE__); return (ret); } while(0)
+#define PARSE_FAIL(ret)                do { printf("PARSE_FAIL line %d\n", __LINE__); return (ret); } while(0)
 
 
 #define MM2INCH(x) ((x)/25.4)
@@ -51,54 +55,12 @@
 #define DISTANCE_X 50 //mm
 #define DISTANCE_Z 3 //*thickness
 
-typedef enum {
-    ELEMENT_PROJECT,
-    ELEMENT_VIYAR,
-    ELEMENT_USER,
-    ELEMENT_ORDER,
-    ELEMENT_CONSTRUCTOR,
-    ELEMENT_MATERIALS,
-    ELEMENT_MATERIAL,
-    ELEMENT_PARTS,
-    ELEMENT_DETAILS,
-    ELEMENT_DETAIL,
-    ELEMENT_EDGES,
-    ELEMENT_LEFT,
-    ELEMENT_RIGHT,
-    ELEMENT_TOP,
-    ELEMENT_BOTTOM,
-    ELEMENT_OPERATIONS,
-    ELEMENT_OPERATION,
-    ELEMENT_PRODUCTS,
-    ELEMENT_UNKNOWN,
-    MAX_ELEMENTS
-} ELEMENTS_T;
-
-const WCHAR *elements_str[MAX_ELEMENTS] = {
-    L"project",
-    L"viyar",
-    L"user",
-    L"order",
-    L"constructor",
-    L"materials",
-    L"material",
-    L"parts",
-    L"details",
-    L"detail",
-    L"edges",
-    L"left",
-    L"right",
-    L"top",
-    L"bottom",
-    L"operations",
-    L"operation",
-    L"products",
-    L"unknown"
-};
+/***************************************************************/
+/*                       Local Types                           */
+/***************************************************************/
 
 typedef enum {
     STATE_ROOT = 0,
-
     STATE_MATERIALS,
     STATE_DETAILS,
     STATE_MAX
@@ -110,8 +72,8 @@ typedef enum {
     MODEL_CLOSED,
 } MODEL_STATE_T;
 
-
 typedef enum {
+    SIDE_UNDEFINED = 0,
     SIDE_FRONT,
     SIDE_LEFT,
     SIDE_TOP,
@@ -121,23 +83,83 @@ typedef enum {
 } SIDES_T;
 
 typedef struct {
-    char* name;
+    char *name;
+    char *description;
+    int material_id;
     double width;
     double height;
     double thickness;
+    int multiplicity;
     size_t amount;
 } DETAIL_DEF_T;
 
-static VIYAR_STATE_T _state = STATE_ROOT;
-static MODEL_STATE_T _model_state = MODEL_NONE;
+typedef enum {
+    DETAIL_ATTR,
+    DETAIL_EDGES,
+    DETAIL_OPERATIONS
+} DETAIL_STATE_T;
+
+typedef enum {
+    TYPE_UNDEFINED = 0,
+    TYPE_SHEET,
+    TYPE_BAND
+} MATERIAL_TYPE_T;
+
+typedef struct {
+    MATERIAL_TYPE_T type;
+    double thickness;
+    int markingColor;
+} MATERIAL_DEF_T;
 
 typedef HRESULT (*attribute_cb)(const WCHAR* elementName,
                                 const WCHAR* LocalName,
                                 const WCHAR* Value,
                                 void *data);
 
+/***************************************************************/
+/*                     Local Variables                         */
+/***************************************************************/
+
+static VIYAR_STATE_T _state = STATE_ROOT;
+static MODEL_STATE_T _model_state = MODEL_NONE;
+static DETAIL_STATE_T _detail_state = DETAIL_ATTR;
 static double _last_detail_position_X = 0;
 
+static int _details_cnt = 0;
+static DETAIL_DEF_T details[100];
+
+static int _materials_cnt = 0;
+static MATERIAL_DEF_T materials[10];
+
+/***************************************************************/
+/*                     Local Functions                         */
+/***************************************************************/
+
+void _dump_detail(DETAIL_DEF_T *d)
+{
+    if (!d)
+    {
+        return;
+    }
+
+    printf("name:        %s\n", d->name);
+    printf("description: %s\n", d->description);
+    printf("size:        %.1f/%.1f/%.1f\n", d->width, d->height, d->thickness);
+    printf("amount:      %zd\n", d->amount);
+}
+
+
+static HRESULT _model_open_create()
+{
+    wprintf(L"TODO: create/read Model\n");
+    return S_OK;
+}
+
+static HRESULT _model_save_close()
+{
+    wprintf(L"TODO: save/close Model\n");
+    return S_OK;
+}
 
 static HRESULT _element_start(const WCHAR* ElementName, void *data)
 {
@@ -151,7 +173,7 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                 if (_model_state == MODEL_NONE)
                 {
                     _model_state = MODEL_OPENED;
-                    wprintf(L"TODO: create/read Model\n");
+                    _model_open_create();
                 }
             }
             else if (wcscmp(ElementName, L"materials") == 0)
@@ -161,6 +183,8 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                     PARSE_FAIL(E_ABORT);
                 }
                 _state = STATE_MATERIALS;
+                _materials_cnt = 0;
+                memset(materials, 0, sizeof(materials));
             }
             else if (wcscmp(ElementName, L"details") == 0)
             {
@@ -169,6 +193,8 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                     PARSE_FAIL(E_ABORT);
                 }
                 _state = STATE_DETAILS;
+                _details_cnt = 0;
+                memset(details, 0, sizeof(details));
             }
             else
             {
@@ -179,22 +205,38 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
         case STATE_MATERIALS:
             if (wcscmp(ElementName, L"material") == 0)
             {
-                wprintf(L"TODO: start adding materials\n");
+                _materials_cnt++;
+                wprintf(L"TODO: (%d) start adding material\n", _materials_cnt);
             }
             else
             {
-                wprintf(L"TODO: (%s) continue updating materials\n", ElementName);
+                wprintf(L"TODO: (%d:%s) continue updating material\n", _materials_cnt, ElementName);
             }
             break;
 
         case STATE_DETAILS:
             if (wcscmp(ElementName, L"detail") == 0)
             {
-                wprintf(L"TODO: start adding details\n");
+                _details_cnt++;
+                _detail_state = DETAIL_ATTR;
+                wprintf(L"_detail_state = DETAIL_ATTR\n");
+//                wprintf(L"TODO: (%d) start adding detail\n", _details_cnt);
             }
             else
             {
-                wprintf(L"TODO: (%s) continue updating details\n", ElementName);
+                wprintf(L"TODO: (%d:%s) continue updating detail\n", _details_cnt, ElementName);
+
+                if (wcscmp(ElementName, L"edges") == 0)
+                {
+                    _detail_state = DETAIL_EDGES;
+                    wprintf(L"_detail_state = DETAIL_EDGES\n");
+                }
+                else if (wcscmp(ElementName, L"operations") == 0)
+                {
+                    _detail_state = DETAIL_OPERATIONS;
+                    wprintf(L"_detail_state = DETAIL_OPERATIONS\n");
+                }
+
             }
             break;
 
@@ -217,13 +259,19 @@ static HRESULT _element_end(const WCHAR* ElementName, void *data)
                 if (_model_state == MODEL_OPENED)
                 {
                     _model_state = MODEL_CLOSED;
-                    wprintf(L"TODO: save/close Model\n");
+                    _model_save_close();
                 }
             }
             break;
 
         case STATE_MATERIALS:
-            if (wcscmp(ElementName, L"materials") == 0)
+
+            if (wcscmp(ElementName, L"material") == 0)
+            {
+                wprintf(L"TODO: add material (%d) to Model\n", _materials_cnt);
+
+            }
+            else if (wcscmp(ElementName, L"materials") == 0)
             {
                 _state = STATE_ROOT;
             }
@@ -232,7 +280,7 @@ static HRESULT _element_end(const WCHAR* ElementName, void *data)
         case STATE_DETAILS:
             if (wcscmp(ElementName, L"detail") == 0)
             {
-                wprintf(L"TODO: add detail to Model\n");
+                wprintf(L"TODO: add detail (%d) to Model\n", _details_cnt);
             }
             else if (wcscmp(ElementName, L"details") == 0)
             {
@@ -257,6 +305,252 @@ static HRESULT _parse_declaration(const WCHAR* ElementName,
     return S_OK;
 }
 
+static HRESULT _parse_material(const WCHAR* ElementName,
+                               const WCHAR* LocalName,
+                               const WCHAR* Value,
+                               void *data)
+{
+    if (_materials_cnt < 1)
+    {
+        PARSE_FAIL(E_ABORT);
+    }
+
+    if (wcscmp(ElementName, L"material") != 0)
+    {
+        return S_FALSE;
+    }
+
+    //wprintf(L"material (%d) %s=\"%s\"\n", _materials_cnt, LocalName, Value);
+    MATERIAL_DEF_T *m = &materials[_materials_cnt-1];
+
+    if (wcscmp(LocalName, L"id") == 0)
+    {
+        if (_wtol(Value) != _materials_cnt)
+        {
+            PARSE_FAIL(E_ABORT);
+        }
+    }
+    else if (wcscmp(LocalName, L"type") == 0)
+    {
+        if (wcscmp(Value, L"sheet") == 0)
+        {
+            m->type = TYPE_SHEET;
+        }
+        else if (wcscmp(Value, L"band") == 0)
+        {
+            m->type = TYPE_BAND;
+        }
+        else
+        {
+            PARSE_FAIL(E_ABORT);
+        }
+    }
+    else if (wcscmp(LocalName, L"thickness") == 0)
+    {
+        m->thickness = _wtof(Value);
+        if (m->thickness == 0.0)
+        {
+            PARSE_FAIL(E_ABORT);
+        }
+    }
+    else if (wcscmp(LocalName, L"markingColor") == 0)
+    {
+        int red, green, blue;
+        if (swscanf_s(Value, L"rgb(%d,%d,%d)", &red, &green, &blue) != 3)
+        {
+            PARSE_FAIL(E_ABORT);
+        }
+
+        m->markingColor = red;
+        m->markingColor = (m->markingColor << 8) + green;
+        m->markingColor = (m->markingColor << 8) + blue;
+    }
+    else
+    {
+        //wprintf(L"Ignore attribute material (%d) %s=\"%s\"\n", _materials_cnt, LocalName, Value);
+        return S_FALSE;
+    }
+
+    return S_OK;
+}
+
+static HRESULT _parse_detail(const WCHAR* ElementName,
+                             const WCHAR* LocalName,
+                             const WCHAR* Value,
+                             void *data)
+{
+    if (wcscmp(ElementName, L"details") == 0)
+    {
+        //Skip <details> attributes
+        return S_FALSE;
+    }
+
+    if (_details_cnt < 1)
+    {
+        PARSE_FAIL(E_ABORT);
+    }
+
+    DETAIL_DEF_T *d = &details[_details_cnt-1];
+
+    wprintf(L"detail %d:%d <%s: %s=\"%s\"> (%p)\n", _details_cnt, _detail_state, ElementName, LocalName, Value, data);
+
+    switch (_detail_state)
+    {
+        case DETAIL_ATTR:
+            if (wcscmp(ElementName, L"detail") == 0)
+            {
+                if (wcscmp(LocalName, L"id") == 0)
+                {
+                    if (_wtol(Value) != _details_cnt)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                }
+                else if (wcscmp(LocalName, L"material") == 0)
+                {
+                    d->material_id = _wtol(Value);
+                    if ((d->material_id <= 0) || (d->material_id > _materials_cnt))
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                    // TODO: update thickness after reading multiplier
+                    MATERIAL_DEF_T *m = &materials[d->material_id-1];
+                    d->thickness = m->thickness;
+                }
+                else if (wcscmp(LocalName, L"amount") == 0)
+                {
+                    d->amount = _wtol(Value);
+                    if (d->amount <= 0)
+                    {
+                        wprintf(L"Warning: %s = %s\n", LocalName, Value);
+                    }
+                }
+                else if (wcscmp(LocalName, L"width") == 0)
+                {
+                    d->width = _wtof(Value);
+                    if (d->width <= 0.0)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                }
+                else if (wcscmp(LocalName, L"height") == 0)
+                {
+                    d->height = _wtof(Value);
+                    if (d->height <= 0.0)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                }
+                else if (wcscmp(LocalName, L"multiplicity") == 0)
+                {
+                    d->multiplicity = _wtol(Value);
+                    if (d->multiplicity <= 0)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                }
+                else if (wcscmp(LocalName, L"description") == 0)
+                {
+                    //TODO: d->description = wstrdup(Value);
+                }
+                else if (wcscmp(LocalName, L"grain") == 0)
+                {
+                    //Always "1" in my files
+                    if (wcscmp(Value, L"1") != 0)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                }
+                else
+                {
+                    wprintf(L"Ignore attribute %s (%d) %s=\"%s\"\n", ElementName, _details_cnt, LocalName, Value);
+                    return S_FALSE;
+                }
+            }
+            else
+            {
+                wprintf(L"Ignore detail element %s (%d) %s=\"%s\"\n", ElementName, _details_cnt, LocalName, Value);
+                return S_FALSE;
+            }
+            break;
+
+        case DETAIL_EDGES:
+            if (wcscmp(ElementName, L"edges") == 0)
+            {
+                if (wcscmp(LocalName, L"joint") == 0)
+                {
+                    //Always "0" in my files
+                    if (wcscmp(Value, L"0") != 0)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                }
+            }
+            else if ((wcscmp(ElementName, L"left") == 0) ||
+                     (wcscmp(ElementName, L"top") == 0) ||
+                     (wcscmp(ElementName, L"right") == 0) ||
+                     (wcscmp(ElementName, L"bottom") == 0))
+            {
+                if (wcscmp(LocalName, L"type") == 0)
+                {
+                    //Limit kromka and empty only for now
+                    if ((wcscmp(Value, L"kromka") != 0) &&
+                            (wcscmp(Value, L"") != 0))
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                }
+                else if (wcscmp(LocalName, L"param") == 0)
+                {
+                    int material_id = _wtol(Value);
+                    if (material_id < 0)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                    else
+                    {
+                        MATERIAL_DEF_T *m = &materials[material_id-1];
+                        if ((wcscmp(ElementName, L"top") == 0) ||
+                            (wcscmp(ElementName, L"bottom") == 0))
+                        {
+                            d->height += m->thickness;
+                        }
+                        else
+                        {
+                            d->width += m->thickness;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                wprintf(L"Ignore detail element %s (%d) %s=\"%s\"\n", ElementName, _details_cnt, LocalName, Value);
+                return S_FALSE;
+            }
+            break;
+
+        case DETAIL_OPERATIONS:
+            if (wcscmp(ElementName, L"operations") == 0)
+            {
+                // No attributes
+            }
+            else if (wcscmp(ElementName, L"operation") == 0)
+            {
+
+                // TODO: add operations
+            }
+            else
+            {
+                wprintf(L"Ignore detail element %s (%d) %s=\"%s\"\n", ElementName, _details_cnt, LocalName, Value);
+                return S_FALSE;
+            }
+            break;
+    }
+
+    return S_OK;
+}
+
+
 static HRESULT _parse_element(const WCHAR* ElementName,
                               const WCHAR* LocalName,
                               const WCHAR* Value,
@@ -264,7 +558,21 @@ static HRESULT _parse_element(const WCHAR* ElementName,
 {
     //wprintf(L"<%s %s=\"%s\"> (%p)\n", ElementName, LocalName, Value, data);
 
-    return S_OK;
+    if (_state == STATE_MATERIALS)
+    {
+        return _parse_material(ElementName, LocalName, Value, data);
+    }
+    else if (_state == STATE_DETAILS)
+    {
+        return _parse_detail(ElementName, LocalName, Value, data);
+    }
+    else if (_state == STATE_ROOT)
+    {
+        //return S_FALSE in ROOT state
+        return S_FALSE;
+    }
+
+    PARSE_FAIL(E_ABORT);
 }
 
 HRESULT WriteAttributes(IXmlReader* pReader, const WCHAR* ElementName, attribute_cb cb, void *data)
@@ -463,6 +771,7 @@ int write_new_model()
 
     DETAIL_DEF_T detail;
     detail.name = "detail 1";
+    detail.description = "detail number 1";
     detail.width = 70;
     detail.height = 360;
     detail.thickness = 18;
@@ -471,6 +780,7 @@ int write_new_model()
     _create_detail_components(model, &detail);
 
     detail.name = "detail 2";
+    detail.description = "detail number 2";
     detail.width = 270;
     detail.height = 160;
     detail.thickness = 18;
@@ -528,6 +838,8 @@ int parse_xml(const WCHAR* xmlfilename)
         HR(hr);
     }
 
+    BOOL is_empty = FALSE;
+
     //read until there are no more nodes
     while (S_OK == (hr = pReader->Read(&nodeType)))
     {
@@ -558,14 +870,22 @@ int parse_xml(const WCHAR* xmlfilename)
                             else
                                 wprintf(L"Element: %s\n", pwszLocalName);
                 */
+
+                // for empty elements call _element_end after parsing attributes
+                is_empty = pReader->IsEmptyElement();
+
                 if (FAILED(hr = WriteAttributes(pReader, pwszLocalName, _parse_element, NULL)))
                 {
                     wprintf(L"Error writing attributes, error is %08.8lx", hr);
                     HR(hr);
                 }
 
-                if (pReader->IsEmptyElement() )
-                    wprintf(L"Element %s (empty)\n", pwszLocalName);
+                if (is_empty)
+                {
+                    hr = _element_end(pwszLocalName, NULL);
+                    CHKHR(hr);
+                }
+
                 break;
             case XmlNodeType_EndElement:
                 if (FAILED(hr = pReader->GetPrefix(&pwszPrefix, &cwchPrefix)))
@@ -631,7 +951,16 @@ int parse_xml(const WCHAR* xmlfilename)
         }
     }
 
+    for (size_t i = 0; i < _details_cnt; i++)
+    {
+        printf("Detail %zd:\n", i);
+        _dump_detail(&details[i]);
+    }
+
+    // TODO: remove this call
     hr = write_new_model();
+
+    CHKHR(_model_state == MODEL_CLOSED ? S_OK : E_ABORT);
 
 CleanUp:
     SAFE_RELEASE(pFileStream);
