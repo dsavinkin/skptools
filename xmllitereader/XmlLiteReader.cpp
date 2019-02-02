@@ -67,7 +67,8 @@
 #define DISTANCE_Y 50 //mm
 #define DISTANCE_Z 3 //*thickness
 
-#define DEFAULT_COLOR_ALPHA 255
+#define DEFAULT_COLOR_ALPHA_BAND 128
+#define DEFAULT_COLOR_ALPHA_SHEET 128
 
 /***************************************************************/
 /*                       Local Types                           */
@@ -273,6 +274,13 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
             {
                 _details_cnt++;
                 _detail_state = DETAIL_ATTR;
+
+                DETAIL_DEF_T *d = &details[_details_cnt-1];
+                for (size_t i = 0 ; i <= 6; i++)
+                {
+                    //Set default material for all bands = material 1
+                    d->m_bands[i] = 1;
+                }
                 wprintf(L"_detail_state = DETAIL_ATTR\n");
 //                wprintf(L"TODO: (%d) start adding detail\n", _details_cnt);
             }
@@ -440,7 +448,7 @@ static HRESULT _parse_material(const WCHAR* ElementName,
         m->color.red = red;
         m->color.green = green;
         m->color.blue = blue;
-        m->color.alpha = DEFAULT_COLOR_ALPHA;
+        m->color.alpha = DEFAULT_COLOR_ALPHA_BAND;
     }
     else
     {
@@ -568,7 +576,7 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                 {
                     //Limit kromka and empty only for now
                     if ((wcscmp(Value, L"kromka") != 0) &&
-                            (wcscmp(Value, L"") != 0))
+                        (wcscmp(Value, L"") != 0))
                     {
                         PARSE_FAIL(E_ABORT);
                     }
@@ -580,7 +588,7 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                     {
                         PARSE_FAIL(E_ABORT);
                     }
-                    else
+                    else if (material_id > 0)
                     {
                         MATERIAL_DEF_T *m = &materials[material_id-1];
 
@@ -604,6 +612,10 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                             d->m_bands[SIDE_RIGHT] = material_id;
                             d->width += m->thickness;
                         }
+                    }
+                    else
+                    {
+                        //Do not update default value in d->m_bands
                     }
                 }
             }
@@ -854,6 +866,26 @@ static void _add_face(SUEntitiesRef entities, SUPoint3D vertices[4], SUMaterialR
     SU_CALL(SUEntitiesAddFaces(entities, 1, &face));
 }
 
+static void _add_drill(SUEntitiesRef entities, SUPoint3D vertices[4], OPERATION_T *op)
+{
+/*
+    SULoopInputRef outer_loop = SU_INVALID;
+
+    SU_CALL(SULoopInputCreate(&outer_loop));
+    for (size_t i = 0; i < 4; ++i) {
+        SULoopInputAddVertexIndex(outer_loop, i);
+    }
+    // Create the face
+    SUFaceRef faces[2] = {SU_INVALID, SU_INVALID};
+    SUFaceRef face = SU_INVALID;
+
+    SU_CALL(SUFaceCreate(&face, vertices, &outer_loop));
+
+    // Add the face to the entities
+    SU_CALL(SUEntitiesAddFaces(entities, 1, &face));
+*/
+}
+
 static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
 {
 
@@ -920,6 +952,8 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
             material = m->material;
         }
 
+        _add_face(entities, sides[i], material);
+
         size_t drill_cnt = 0;
         for (size_t j = 0; j < d->operations_cnt; j++)
         {
@@ -927,6 +961,7 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
             if ((op->type == TYPE_DRILLING) && (op->side == i+1))
             {
                 drill_cnt++;
+                _add_drill(entities, sides[i], op);
             }
         }
 
@@ -934,8 +969,6 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
         {
             printf("drill operations for side %zd side=%zd\n", i+1, drill_cnt);
         }
-
-        _add_face(entities, sides[i], material);
     }
 }
 
@@ -1063,7 +1096,7 @@ int write_new_model()
         {
             //Create custom colors based on thickness
             SUColor color;
-            color.alpha = DEFAULT_COLOR_ALPHA;
+            color.alpha = DEFAULT_COLOR_ALPHA_BAND;
 
             if (m->thickness <= 0.6)
             {
@@ -1089,6 +1122,18 @@ int write_new_model()
                 color.green = 0;
                 color.blue = 102;
             }
+
+            SU_CALL(SUMaterialCreate(&m->material));
+            SU_CALL(SUMaterialSetColor(m->material, &color));
+            SU_CALL(SUModelAddMaterials(model, 1, &m->material));
+        }
+        else if (m->type == TYPE_SHEET)
+        {
+            SUColor color;
+            color.alpha = DEFAULT_COLOR_ALPHA_SHEET;
+            color.red = 255;
+            color.green = 255;
+            color.blue = 255;
 
             SU_CALL(SUMaterialCreate(&m->material));
             SU_CALL(SUMaterialSetColor(m->material, &color));
