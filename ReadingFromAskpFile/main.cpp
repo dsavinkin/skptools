@@ -22,6 +22,69 @@
     printf("%s: "#func" = %zd\n", prefix, count); \
 } while (0)
 
+static void _print_material(SUMaterialRef material, const char *prefix)
+{
+    if (!SUIsInvalid(material))
+    {
+        if (1)
+        {
+            SUStringRef name = SU_INVALID;
+            SUStringCreate(&name);
+            SUMaterialGetName(material, &name);
+            size_t name_length = 0;
+            SUStringGetUTF8Length(name, &name_length);
+            char* name_utf8 = new char[name_length + 1];
+            SUStringGetUTF8(name, name_length + 1, name_utf8, &name_length);
+            // Now we have the name in a form we can use
+            SUStringRelease(&name);
+            printf("%s: name='%s'\n", prefix, name_utf8);
+            delete []name_utf8;
+        }
+
+        if (1)
+        {
+            SUColor color;
+            SUMaterialGetColor(material, &color);
+            printf("%s: color=rgb(%d,%d,%d,%d)\n", prefix,
+                   color.red, color.green, color.blue, color.alpha);
+        }
+
+        if (1)
+        {
+            SUTextureRef texture;
+            SUMaterialGetTexture(material, &texture);
+        }
+
+        if (1)
+        {
+            double alpha;
+            SUMaterialGetOpacity(material, &alpha);
+            printf("%s: Opacity=%f\n", prefix, alpha);
+        }
+
+        if (1)
+        {
+            bool use_opacity;
+            SUMaterialGetUseOpacity(material, &use_opacity);
+            printf("%s: UseOpacity=%d\n", prefix, use_opacity);
+        }
+
+        if (1)
+        {
+            enum SUMaterialType type;
+            SUMaterialGetType(material, &type);
+            printf("%s: type=%d\n", prefix, type);
+        }
+
+        if (1)
+        {
+            bool transparency;
+            SUMaterialIsDrawnTransparent(material, &transparency);
+            printf("%s: transparency=%d\n", prefix, transparency);
+        }
+    }
+}
+
 static void _list_entities(SUEntitiesRef entities, const char *prefix)
 {
     if (SUIsInvalid(entities))
@@ -343,69 +406,7 @@ int main(int argc, char **argv)
 
         for (size_t i = 0; i < num_materials; i++) {
             SUMaterialRef material = materials[i];
-            if (!SUIsInvalid(material))
-            {
-                if (1)
-                {
-                    SUStringRef name = SU_INVALID;
-                    SUStringCreate(&name);
-                    SUMaterialGetName(material, &name);
-                    size_t name_length = 0;
-                    SUStringGetUTF8Length(name, &name_length);
-                    char* name_utf8 = new char[name_length + 1];
-                    SUStringGetUTF8(name, name_length + 1, name_utf8, &name_length);
-                    // Now we have the name in a form we can use
-                    SUStringRelease(&name);
-                    printf("%s: name='%s'\n", prefix, name_utf8);
-                    delete []name_utf8;
-                }
-
-                if (1)
-                {
-                    SUColor color;
-                    SUMaterialGetColor(material, &color);
-                    printf("%s: color=rgb(%d,%d,%d,%d)\n", prefix,
-                           color.red, color.green, color.blue, color.alpha);
-                }
-
-                if (1)
-                {
-                    SUTextureRef texture;
-                    SUMaterialGetTexture(material, &texture);
-                }
-
-                if (1)
-                {
-                    double alpha;
-                    SUMaterialGetOpacity(material, &alpha);
-                    printf("%s: Opacity=%f\n", prefix, alpha);
-                }
-
-                if (1)
-                {
-                    bool use_opacity;
-                    SUMaterialGetUseOpacity(material, &use_opacity);
-                    printf("%s: UseOpacity=%d\n", prefix, use_opacity);
-                }
-
-                if (1)
-                {
-                    enum SUMaterialType type;
-                    SUMaterialGuse_opacityetType(material, &type);
-                    printf("%s: type=%d\n", prefix, type);
-                }
-
-                if (1)
-                {
-                    bool transparency;
-                    SUMaterialIsDrawnTransparent(material, &transparency);
-                    printf("%s: transparency=%d\n", prefix, transparency);
-                }
-            }
-            else
-            {
-                printf("invalid instance %zd\n", i);
-            }
+            _print_material(material, prefix);
         }
     }
 
