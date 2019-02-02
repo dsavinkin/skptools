@@ -102,6 +102,34 @@ typedef enum {
     SIDE_BACK
 } SIDES_T;
 
+typedef enum {
+    TYPE_OP_UNDEFINED,
+    TYPE_DRILLING,
+    TYPE_RABBETING,
+    TYPE_SHAPEBYPATTERN,
+    TYPE_GROOVING,
+    TYPE_CORNEROPERATION,
+} OPERATION_TYPE_T;
+
+typedef struct {
+    OPERATION_TYPE_T type;
+    int side;
+    int corner;
+    double x;   //for drilling we really need x,y,d and depth
+    double y;
+    double xo;
+    double yo;
+    double d;
+    double depth;
+    double millD;
+    int mill;
+    int edgeMaterial;
+    int edgeCovering;
+    WCHAR *xl;
+    WCHAR *yl;
+    WCHAR *subtype;
+} OPERATION_T;
+
 typedef struct {
     char *name;
     char *description;
@@ -113,10 +141,12 @@ typedef struct {
     int grain;
     size_t amount;
     int m_bands[7];
+    size_t operations_cnt;
+    OPERATION_T *operations; //dynamic array
 } DETAIL_DEF_T;
 
 typedef enum {
-    TYPE_UNDEFINED = 0,
+    TYPE_M_UNDEFINED = 0,
     TYPE_SHEET,
     TYPE_BAND
 } MATERIAL_TYPE_T;
@@ -128,13 +158,7 @@ typedef struct {
     SUMaterialRef material;
 } MATERIAL_DEF_T;
 
-typedef enum {
-    TYPE_DRILLING,
-} OPERATION_TYPE_T;
 
-typedef struct {
-    OPERATION_TYPE_T type;
-} OPERATION_T;
 
 
 typedef HRESULT (*attribute_cb)(const WCHAR* elementName,
@@ -254,19 +278,41 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
             }
             else
             {
-                wprintf(L"TODO: (%d:%s) continue updating detail\n", _details_cnt, ElementName);
+                //wprintf(L"TODO: (%d:%s) continue updating detail\n", _details_cnt, ElementName);
 
                 if (wcscmp(ElementName, L"edges") == 0)
                 {
                     _detail_state = DETAIL_EDGES;
                     wprintf(L"_detail_state = DETAIL_EDGES\n");
                 }
+                else if (wcscmp(ElementName, L"edge") == 0)
+                {
+                    if (_detail_state != DETAIL_EDGES)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                }
                 else if (wcscmp(ElementName, L"operations") == 0)
                 {
                     _detail_state = DETAIL_OPERATIONS;
                     wprintf(L"_detail_state = DETAIL_OPERATIONS\n");
                 }
+                else if (wcscmp(ElementName, L"operation") == 0)
+                {
+                    if (_detail_state != DETAIL_OPERATIONS)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
 
+                    DETAIL_DEF_T *d = &details[_details_cnt-1];
+
+                    d->operations_cnt++;
+                    d->operations = (OPERATION_T*)realloc(d->operations, sizeof(OPERATION_T)*d->operations_cnt);
+                    if (d->operations == NULL)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                }
             }
             break;
 
@@ -423,7 +469,7 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
 
     DETAIL_DEF_T *d = &details[_details_cnt-1];
 
-    wprintf(L"detail %d:%d <%s: %s=\"%s\"> (%p)\n", _details_cnt, _detail_state, ElementName, LocalName, Value, data);
+    //wprintf(L"detail %d:%d <%s: %s=\"%s\"> (%p)\n", _details_cnt, _detail_state, ElementName, LocalName, Value, data);
 
     switch (_detail_state)
     {
@@ -490,7 +536,7 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                 }
                 else
                 {
-                    wprintf(L"Ignore attribute %s (%d) %s=\"%s\"\n", ElementName, _details_cnt, LocalName, Value);
+                    //wprintf(L"Ignore attribute %s (%d) %s=\"%s\"\n", ElementName, _details_cnt, LocalName, Value);
                     return S_FALSE;
                 }
             }
@@ -576,7 +622,113 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
             else if (wcscmp(ElementName, L"operation") == 0)
             {
 
-                // TODO: add operations
+                if (d->operations_cnt == 0)
+                {
+                    PARSE_FAIL(E_ABORT);
+                }
+
+                OPERATION_T * op = &d->operations[d->operations_cnt-1];
+
+                if (wcscmp(LocalName, L"id") == 0)
+                {
+                    if (_wtol(Value) != d->operations_cnt)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+                }
+                else if (wcscmp(LocalName, L"type") == 0)
+                {
+                    if (wcscmp(Value, L"drilling") == 0)
+                    {
+                        op->type = TYPE_DRILLING;
+                    }
+                    else if (wcscmp(Value, L"shapeByPattern") == 0)
+                    {
+                        op->type = TYPE_SHAPEBYPATTERN;
+                    }
+                    else if (wcscmp(Value, L"rabbeting") == 0)
+                    {
+                        op->type = TYPE_RABBETING;
+                    }
+                    else if (wcscmp(Value, L"grooving") == 0)
+                    {
+                        op->type = TYPE_GROOVING;
+                    }
+                    else if (wcscmp(Value, L"cornerOperation") == 0)
+                    {
+                        op->type = TYPE_CORNEROPERATION;
+                    }
+                    else
+                    {
+                        wprintf(L"Ignore operation (%d) %s=\"%s\"\n", _details_cnt, LocalName, Value);
+                        return S_FALSE;
+                    }
+                }
+                else if (wcscmp(LocalName, L"subtype") == 0)
+                {
+                    op->subtype = _wcsdup(Value);
+                }
+                else if (wcscmp(LocalName, L"xl") == 0)
+                {
+                    op->xl = _wcsdup(Value);
+                }
+                else if (wcscmp(LocalName, L"yl") == 0)
+                {
+                    op->yl = _wcsdup(Value);
+                }
+                else if (wcscmp(LocalName, L"x") == 0)
+                {
+                    op->x = _wtof(Value);
+                }
+                else if (wcscmp(LocalName, L"y") == 0)
+                {
+                    op->y = _wtof(Value);
+                }
+                else if (wcscmp(LocalName, L"xo") == 0)
+                {
+                    op->xo = _wtof(Value);
+                }
+                else if (wcscmp(LocalName, L"yo") == 0)
+                {
+                    op->yo = _wtof(Value);
+                }
+                else if (wcscmp(LocalName, L"d") == 0)
+                {
+                    op->d = _wtof(Value);
+                }
+                else if (wcscmp(LocalName, L"depth") == 0)
+                {
+                    op->depth = _wtof(Value);
+                }
+                else if (wcscmp(LocalName, L"millD") == 0)
+                {
+                    op->millD = _wtof(Value);
+                }
+                else if (wcscmp(LocalName, L"side") == 0)
+                {
+                    op->side = _wtol(Value);
+                }
+                else if (wcscmp(LocalName, L"corner") == 0)
+                {
+                    op->corner = _wtol(Value);
+                }
+                else if (wcscmp(LocalName, L"mill") == 0)
+                {
+                    op->mill = _wtol(Value);
+                }
+                else if (wcscmp(LocalName, L"edgeMaterial") == 0)
+                {
+                    op->edgeMaterial = _wtol(Value);
+                }
+                else if (wcscmp(LocalName, L"edgeCovering") == 0)
+                {
+                    op->edgeCovering = _wtol(Value);
+                }
+                else
+                {
+                    wprintf(L"Ignore attribute %s (%d) %s=\"%s\"\n", ElementName, _details_cnt, LocalName, Value);
+                    return S_FALSE;
+                }
             }
             else
             {
@@ -766,6 +918,21 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
             int m_id = d->m_bands[i+1];
             MATERIAL_DEF_T *m = &materials[m_id-1];
             material = m->material;
+        }
+
+        size_t drill_cnt = 0;
+        for (size_t j = 0; j < d->operations_cnt; j++)
+        {
+            OPERATION_T *op = &d->operations[j];
+            if ((op->type == TYPE_DRILLING) && (op->side == i+1))
+            {
+                drill_cnt++;
+            }
+        }
+
+        if (drill_cnt)
+        {
+            printf("drill operations for side %zd side=%zd\n", i+1, drill_cnt);
         }
 
         _add_face(entities, sides[i], material);
