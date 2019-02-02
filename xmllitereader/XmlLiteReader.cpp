@@ -875,7 +875,7 @@ static void _add_drill(SUEntitiesRef entities, SUPoint3D corner, OPERATION_T *op
 
     if ((side == SIDE_TOP) || (side == SIDE_BOTTOM))
     {
-        center.z += Y;
+        center.z -= Y;
     }
     else
     {
@@ -884,7 +884,7 @@ static void _add_drill(SUEntitiesRef entities, SUPoint3D corner, OPERATION_T *op
 
     if ((side == SIDE_LEFT) || (side == SIDE_RIGHT))
     {
-        center.z += X;
+        center.z -= X;
     }
     else
     {
@@ -956,28 +956,28 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
             { 0, Y, Z },
         },
         {   //SIDE_LEFT
-            { 0, 0, 0 },
             { 0, 0, Z },
             { 0, Y, Z },
             { 0, Y, 0 },
+            { 0, 0, 0 },
         },
         {   //SIDE_TOP
-            { 0, Y, 0 },
             { 0, Y, Z },
             { X, Y, Z },
             { X, Y, 0 },
+            { 0, Y, 0 },
         },
         {   //SIDE_RIGHT
+            { X, 0, Z },
             { X, 0, 0 },
             { X, Y, 0 },
             { X, Y, Z },
-            { X, 0, Z },
         },
         {   //SIDE_BOTTOM
+            { 0, 0, Z },
             { 0, 0, 0 },
             { X, 0, 0 },
             { X, 0, Z },
-            { 0, 0, Z }
         },
         {   //SIDE_BACK
             { 0, 0, 0 },
@@ -1023,13 +1023,12 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                 }
 
                 _add_drill(entities, sides[i][0], op, normals[i], depth, i);
-                //TODO: add second drill (normal+depth)
             }
         }
 
         if (drill_cnt)
         {
-            printf("for side %zd drill_cnt=%zd\n", i+1, drill_cnt);
+            //printf("for side %zd drill_cnt=%zd\n", i+1, drill_cnt);
         }
     }
 }
