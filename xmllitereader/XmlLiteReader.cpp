@@ -44,6 +44,14 @@
 
 #define PARSE_FAIL(ret)                do { printf("PARSE_FAIL line %d\n", __LINE__); return (ret); } while(0)
 
+#ifndef MAX
+#define MAX(x,y) ((x) > (y) ? (x) : (y))
+#endif
+
+#ifndef MIN
+#define MIN(x,y) ((x) < (y) ? (x) : (y))
+#endif
+
 
 #define MM2INCH(x) ((x)/25.4)
 #define INCH2MM(x) ((x)*25.4)
@@ -53,6 +61,7 @@
 #endif
 
 #define DISTANCE_X 50 //mm
+#define DISTANCE_Y 50 //mm
 #define DISTANCE_Z 3 //*thickness
 
 /***************************************************************/
@@ -125,6 +134,10 @@ static VIYAR_STATE_T _state = STATE_ROOT;
 static MODEL_STATE_T _model_state = MODEL_NONE;
 static DETAIL_STATE_T _detail_state = DETAIL_ATTR;
 static double _last_detail_position_X = 0;
+static double _last_detail_position_Y = 0;
+static double _max_detail_position_X = 0;
+static double _max_detail_position_Y = 0;
+static int _detail_position_direction = 0;
 
 static int _details_cnt = 0;
 static DETAIL_DEF_T details[100];
@@ -740,8 +753,9 @@ static void _create_detail_components(SUModelRef model,
     _create_detail(instance_entities, detail_def->width, detail_def->height, detail_def->thickness);
 
     //component instance location
-    transform.values[12] = _last_detail_position_X;
-
+    transform.values[12] = MM2INCH(_last_detail_position_X);
+    transform.values[13] = MM2INCH(_last_detail_position_Y);
+	
     SU_CALL(SUComponentInstanceSetTransform(instance, &transform));
     SU_CALL(SUEntitiesAddInstance(entities, instance, NULL));
 
@@ -757,8 +771,48 @@ static void _create_detail_components(SUModelRef model,
         SU_CALL(SUEntitiesAddInstance(entities, instance2, NULL));
     }
 
-    _last_detail_position_X += MM2INCH(DISTANCE_X + detail_def->width);
+	printf("Before: %d X: %.1f (%.1f) / Y: %.1f (%.1f) ", _detail_position_direction, 
+		   _last_detail_position_X, _max_detail_position_X,
+		   _last_detail_position_Y, _max_detail_position_Y
+		  );
+	
+	if (_detail_position_direction == 0)
+	{
+		printf("x-1 ");
+		_last_detail_position_X += DISTANCE_X + detail_def->width;
+		_max_detail_position_X = MAX(_max_detail_position_X, _last_detail_position_X);
 
+		_max_detail_position_Y = MAX(_max_detail_position_Y, _max_detail_position_Y + detail_def->height);
+		
+		if (_max_detail_position_X > _max_detail_position_Y)
+		{
+			printf("x-2 ");
+			_last_detail_position_Y = _max_detail_position_Y + DISTANCE_Y;
+			_last_detail_position_X = 0;
+			_detail_position_direction = 1;
+		}
+	}
+	else
+	{
+		printf("y-1 ");
+		_last_detail_position_Y += DISTANCE_Y + detail_def->width;
+		_max_detail_position_Y = MAX(_max_detail_position_Y, _last_detail_position_Y);
+
+		_max_detail_position_X = MAX(_max_detail_position_X, _max_detail_position_X + detail_def->height);
+		
+		if (_max_detail_position_Y > _max_detail_position_X)
+		{
+			printf("y-2 ");
+			_last_detail_position_X = _max_detail_position_X + DISTANCE_X;
+			_last_detail_position_Y = 0;
+			_detail_position_direction = 0;
+		}
+	}
+	
+	printf("\n After: %d X: %.1f (%.1f) / Y: %.1f (%.1f)\n", _detail_position_direction, 
+		   _last_detail_position_X, _max_detail_position_X,
+		   _last_detail_position_Y, _max_detail_position_Y
+		  );	
 }
 
 int write_new_model()
@@ -769,10 +823,11 @@ int write_new_model()
     SUModelRef model = SU_INVALID;
     SU_CALL(SUModelCreate(&model));
 
+	
 	for (size_t i = 0; i < _details_cnt; i++)
 	{
 		printf("Detail %zd:\n", i);
-		_dump_detail(&details[i]);
+//		_dump_detail(&details[i]);
 		_create_detail_components(model, &details[i]);
 	}
 
