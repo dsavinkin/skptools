@@ -670,10 +670,10 @@ HRESULT WriteAttributes(IXmlReader* pReader, const WCHAR* ElementName, attribute
     return hr;
 }
 
-static void _add_face(SUEntitiesRef entities, SUPoint3D vertices[4])
+static void _add_face(SUEntitiesRef entities, SUPoint3D vertices[4], SUMaterialRef material)
 {
     SULoopInputRef outer_loop = SU_INVALID;
-    SULoopInputCreate(&outer_loop);
+    SU_CALL(SULoopInputCreate(&outer_loop));
     for (size_t i = 0; i < 4; ++i) {
         SULoopInputAddVertexIndex(outer_loop, i);
     }
@@ -681,9 +681,16 @@ static void _add_face(SUEntitiesRef entities, SUPoint3D vertices[4])
     SUFaceRef faces[2] = {SU_INVALID, SU_INVALID};
     SUFaceRef face = SU_INVALID;
 
-    SUFaceCreate(&face, vertices, &outer_loop);
+    SU_CALL(SUFaceCreate(&face, vertices, &outer_loop));
+
+    if (!SUIsInvalid(material))
+    {
+        SU_CALL(SUFaceSetFrontMaterial(face, material));
+        SU_CALL(SUFaceSetBackMaterial(face, material));
+    }
+
     // Add the face to the entities
-    SUEntitiesAddFaces(entities, 1, &face);
+    SU_CALL(SUEntitiesAddFaces(entities, 1, &face));
 }
 
 static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
@@ -735,7 +742,16 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
 
     for (size_t i = 0; i < 6; ++i)
     {
-        _add_face(entities, sides[i]);
+        SUMaterialRef material = SU_INVALID;
+        if (d->m_bands[i+1])
+        {
+            int m_id = d->m_bands[i+1];
+            MATERIAL_DEF_T *m = &materials[m_id-1];
+            printf("Add band material %d for side %zd\n", m_id, i);
+            material = m->material;
+        }
+
+        _add_face(entities, sides[i], material);
     }
 }
 
