@@ -864,26 +864,71 @@ static void _add_face(SUEntitiesRef entities, SUPoint3D vertices[4], SUMaterialR
     SU_CALL(SUEntitiesAddFaces(entities, 1, &face));
 }
 
-static void _add_drill(SUEntitiesRef entities, SUPoint3D corner, OPERATION_T *op, SUVector3D normal, double depth)
+static void _add_drill(SUEntitiesRef entities, SUPoint3D corner, OPERATION_T *op, SUVector3D normal, double depth, size_t side)
 {
     SUPoint3D center = corner;
 
     double X = MM2INCH(op->x);
     double Y = MM2INCH(op->y);
     double D = MM2INCH(op->d);
+    double DEPTH = MM2INCH(depth);
 
-    center.x += X;
-    center.y += Y;
+    if ((side == SIDE_TOP) || (side == SIDE_BOTTOM))
+    {
+        center.z += Y;
+    }
+    else
+    {
+        center.y += Y;
+    }
+
+    if ((side == SIDE_LEFT) || (side == SIDE_RIGHT))
+    {
+        center.z += X;
+    }
+    else
+    {
+        center.x += X;
+    }
+
     SUPoint3D start_point = center;
 
-    start_point.x += D/2;
-
+    if ((side == SIDE_LEFT) || (side == SIDE_RIGHT))
+    {
+        start_point.z += D/2;
+    }
+    else
+    {
+        start_point.x += D/2;
+    }
 
     SUArcCurveRef arccurve = SU_INVALID;
     SU_CALL(SUArcCurveCreate(&arccurve, &center, &start_point, &start_point, &normal, 16));
 
     // Add the ArcCyrves to the entities
     SU_CALL(SUEntitiesAddArcCurves(entities, 1, &arccurve));
+
+
+    center.x += normal.x*DEPTH;
+    center.y += normal.y*DEPTH;
+    center.z += normal.z*DEPTH;
+
+    start_point = center;
+    if ((side == SIDE_LEFT) || (side == SIDE_RIGHT))
+    {
+        start_point.z += D/2;
+    }
+    else
+    {
+        start_point.x += D/2;
+    }
+
+    SUArcCurveRef arccurve2 = SU_INVALID;
+    SU_CALL(SUArcCurveCreate(&arccurve2, &center, &start_point, &start_point, &normal, 16));
+
+    // Add the ArcCyrves to the entities
+    SU_CALL(SUEntitiesAddArcCurves(entities, 1, &arccurve2));
+
 }
 
 static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
@@ -943,12 +988,12 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
     };
 
     SUVector3D normals[6] = {
-        { 0,  0,  1},  //SIDE_FRONT
+        { 0,  0, -1},  //SIDE_FRONT
         { 1,  0,  0},  //SIDE_LEFT
-        { 0,  1,  0},  //SIDE_TOP
+        { 0, -1,  0},  //SIDE_TOP
         {-1,  0,  0},  //SIDE_RIGHT
-        { 0, -1,  0},  //SIDE_BOTTOM
-        { 0,  0, -1},  //SIDE_BACK
+        { 0,  1,  0},  //SIDE_BOTTOM
+        { 0,  0,  1},  //SIDE_BACK
     };
 
     for (size_t i = 0; i < 6; ++i)
@@ -971,13 +1016,14 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
             {
                 drill_cnt++;
                 double depth = op->depth;
-                if (((i+1 == SIDE_FRONT) || (i+1 == SIDE_BACK))
+                if (((i == SIDE_FRONT) || (i == SIDE_BACK))
                         && (depth > d->thickness))
                 {
                     depth = d->thickness;
                 }
 
-                _add_drill(entities, sides[i][0], op, normals[i], depth);
+                _add_drill(entities, sides[i][0], op, normals[i], depth, i);
+                //TODO: add second drill (normal+depth)
             }
         }
 
