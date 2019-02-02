@@ -908,12 +908,13 @@ static void _add_drill(SUEntitiesRef entities, SUPoint3D corner, OPERATION_T *op
     // Add the ArcCyrves to the entities
     SU_CALL(SUEntitiesAddArcCurves(entities, 1, &arccurve));
 
+    SUPoint3D center2 = {
+        center.x + normal.x*DEPTH,
+        center.y + normal.y*DEPTH,
+        center.z + normal.z*DEPTH,
+    };
 
-    center.x += normal.x*DEPTH;
-    center.y += normal.y*DEPTH;
-    center.z += normal.z*DEPTH;
-
-    start_point = center;
+    start_point = center2;
     if ((side == SIDE_LEFT) || (side == SIDE_RIGHT))
     {
         start_point.z += D/2;
@@ -924,11 +925,16 @@ static void _add_drill(SUEntitiesRef entities, SUPoint3D corner, OPERATION_T *op
     }
 
     SUArcCurveRef arccurve2 = SU_INVALID;
-    SU_CALL(SUArcCurveCreate(&arccurve2, &center, &start_point, &start_point, &normal, 16));
+    SU_CALL(SUArcCurveCreate(&arccurve2, &center2, &start_point, &start_point, &normal, 16));
 
     // Add the ArcCyrves to the entities
     SU_CALL(SUEntitiesAddArcCurves(entities, 1, &arccurve2));
 
+    SUEdgeRef edge = SU_INVALID;
+    SU_CALL(SUEdgeCreate(&edge, &center, &center2));
+
+    // Add the Edge to the entities
+    SU_CALL(SUEntitiesAddEdges(entities, 1, &edge));
 }
 
 static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
