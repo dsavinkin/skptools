@@ -20,6 +20,7 @@
 
 #include <SketchUpAPI/common.h>
 #include <SketchUpAPI/geometry.h>
+#include <SketchUpAPI/color.h>
 #include <SketchUpAPI/initialize.h>
 #include <SketchUpAPI/unicodestring.h>
 #include <SketchUpAPI/model/model.h>
@@ -31,6 +32,8 @@
 #include <SketchUpAPI/model/component_instance.h>
 #include <SketchUpAPI/model/component_definition.h>
 #include <SketchUpAPI/model/group.h>
+#include <SketchUpAPI/model/material.h>
+
 #include <vector>
 
 /***************************************************************/
@@ -64,6 +67,8 @@
 #define DISTANCE_Y 50 //mm
 #define DISTANCE_Z 3 //*thickness
 
+#define DEFAULT_COLOR_ALPHA 255
+
 /***************************************************************/
 /*                       Local Types                           */
 /***************************************************************/
@@ -80,6 +85,12 @@ typedef enum {
     MODEL_OPENED,
     MODEL_CLOSED,
 } MODEL_STATE_T;
+
+typedef enum {
+    DETAIL_ATTR,
+    DETAIL_EDGES,
+    DETAIL_OPERATIONS
+} DETAIL_STATE_T;
 
 typedef enum {
     SIDE_UNDEFINED = 0,
@@ -101,13 +112,8 @@ typedef struct {
     int multiplicity;
     int grain;
     size_t amount;
+    int m_bands[7];
 } DETAIL_DEF_T;
-
-typedef enum {
-    DETAIL_ATTR,
-    DETAIL_EDGES,
-    DETAIL_OPERATIONS
-} DETAIL_STATE_T;
 
 typedef enum {
     TYPE_UNDEFINED = 0,
@@ -118,7 +124,8 @@ typedef enum {
 typedef struct {
     MATERIAL_TYPE_T type;
     double thickness;
-    int markingColor;
+    SUColor color;
+    SUMaterialRef material;
 } MATERIAL_DEF_T;
 
 typedef HRESULT (*attribute_cb)(const WCHAR* elementName,
@@ -375,9 +382,10 @@ static HRESULT _parse_material(const WCHAR* ElementName,
             PARSE_FAIL(E_ABORT);
         }
 
-        m->markingColor = red;
-        m->markingColor = (m->markingColor << 8) + green;
-        m->markingColor = (m->markingColor << 8) + blue;
+        m->color.red = red;
+        m->color.green = green;
+        m->color.blue = blue;
+        m->color.alpha = DEFAULT_COLOR_ALPHA;
     }
     else
     {
@@ -520,13 +528,25 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                     else
                     {
                         MATERIAL_DEF_T *m = &materials[material_id-1];
-                        if ((wcscmp(ElementName, L"top") == 0) ||
-                            (wcscmp(ElementName, L"bottom") == 0))
+
+                        if (wcscmp(ElementName, L"top") == 0)
                         {
+                            d->m_bands[SIDE_TOP] = material_id;
                             d->height += m->thickness;
                         }
-                        else
+                        else if (wcscmp(ElementName, L"bottom") == 0)
                         {
+                            d->m_bands[SIDE_BOTTOM] = material_id;
+                            d->height += m->thickness;
+                        }
+                        else if (wcscmp(ElementName, L"left") == 0)
+                        {
+                            d->m_bands[SIDE_LEFT] = material_id;
+                            d->width += m->thickness;
+                        }
+                        else if (wcscmp(ElementName, L"right") == 0)
+                        {
+                            d->m_bands[SIDE_RIGHT] = material_id;
                             d->width += m->thickness;
                         }
                     }
@@ -832,11 +852,31 @@ int write_new_model()
     SUModelRef model = SU_INVALID;
     SU_CALL(SUModelCreate(&model));
 
+    //Add materials to the model and save them as materials[].material
+    for (size_t i = 0; i < _materials_cnt; i++)
+    {
+        MATERIAL_DEF_T *m = &materials[i];
+        printf("material %zd: type=%d, thickness=%.1f\n", i+1,
+               m->type, m->thickness);
+
+        if (m->type == TYPE_BAND)
+        {
+            SU_CALL(SUMaterialCreate(&m->material));
+            SU_CALL(SUMaterialSetColor(m->material, &m->color));
+            SU_CALL(SUModelAddMaterials(model, 1, &m->material));
+        }
+        else
+        {
+            m->material = SU_INVALID;
+        }
+    }
 
     for (size_t i = 0; i < _details_cnt; i++)
     {
-//        printf("Detail %zd:\n", i);
-//      _dump_detail(&details[i]);
+#if 0
+        printf("Detail %zd:\n", i);
+        _dump_detail(&details[i]);
+#endif
         _create_detail_components(model, &details[i]);
     }
 

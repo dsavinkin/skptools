@@ -219,18 +219,20 @@ static void _list_entities(SUEntitiesRef entities, const char *prefix)
 
         // Get all the edges in this face
         for (size_t i = 0; i < faceCount; i++) {
+            SUFaceRef face = faces[i];
             size_t edgeCount = 0;
-            SUFaceGetNumEdges(faces[i], &edgeCount);
+            SUFaceGetNumEdges(face, &edgeCount);
             if (edgeCount > 0) {
                 std::vector<SUEdgeRef> edges(edgeCount);
-                SUFaceGetEdges(faces[i], edgeCount, &edges[0], &edgeCount);
+                SUFaceGetEdges(face, edgeCount, &edges[0], &edgeCount);
 
                 // Get the vertex positions for each edge
                 for (size_t j = 0; j < edgeCount; j++) {
+                    SUEdgeRef edge = edges[j];
                     SUVertexRef startVertex = SU_INVALID;
                     SUVertexRef endVertex = SU_INVALID;
-                    SUEdgeGetStartVertex(edges[j], &startVertex);
-                    SUEdgeGetEndVertex(edges[j], &endVertex);
+                    SUEdgeGetStartVertex(edge, &startVertex);
+                    SUEdgeGetEndVertex(edge, &endVertex);
                     SUPoint3D start;
                     SUPoint3D end;
                     SUVertexGetPosition(startVertex, &start);
@@ -240,6 +242,29 @@ static void _list_entities(SUEntitiesRef entities, const char *prefix)
                     printf("face %zd: edge %zd : (%.0f-%.0f-%.0f to %.0f-%.0f-%.0f)\n", i, j,
                            start.x, start.y, start.z,
                            end.x, end.y, end.z);
+                }
+
+                if (1)
+                {
+                    SUMaterialRef material = SU_INVALID;
+                    if (SUFaceGetFrontMaterial(face, &material) == SU_ERROR_NONE)
+                    {
+                        _print_material(material, "face front");
+                    }
+                    else
+                    {
+                        printf("face %zd has no front material\n", i);
+                    }
+
+                    material = SU_INVALID;
+                    if (SUFaceGetBackMaterial(face, &material) == SU_ERROR_NONE)
+                    {
+                        _print_material(material, "face back");
+                    }
+                    else
+                    {
+                        printf("face %zd has no back material\n", i);
+                    }
                 }
             }
         }
