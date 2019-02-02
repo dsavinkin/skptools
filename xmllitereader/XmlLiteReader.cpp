@@ -666,46 +666,50 @@ static void _add_face(SUEntitiesRef entities, SUPoint3D vertices[4])
     SUEntitiesAddFaces(entities, 1, &face);
 }
 
-static void _create_detail(//SUComponentInstanceRef instance,
-                               SUEntitiesRef entities,
-                               double width, double height, double thickness)
+static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
 {
+
+    //End coordinates of detail in INCHES
+    double X = MM2INCH(d->width);
+    double Y = MM2INCH(d->height);
+    double Z = MM2INCH(d->thickness);
+
     SUPoint3D sides[6][4] = {
         {
-            { 0,                0,                  0 },
-            { 0,                MM2INCH(height),    0 },
-            { MM2INCH(width),   MM2INCH(height),    0 },
-            { MM2INCH(width),   0,                  0 },
+            { 0, 0, 0 },
+            { 0, Y, 0 },
+            { X, Y, 0 },
+            { X, 0, 0 },
         },
         {
-            { 0,                0,                  MM2INCH(thickness) },
-            { MM2INCH(width),   0,                  MM2INCH(thickness) },
-            { MM2INCH(width),   MM2INCH(height),    MM2INCH(thickness) },
-            { 0,                MM2INCH(height),    MM2INCH(thickness) },
+            { 0, 0, Z },
+            { X, 0, Z },
+            { X, Y, Z },
+            { 0, Y, Z },
         },
         {
-            { 0,                0,                  0 },
-            { MM2INCH(width),   0,                  0 },
-            { MM2INCH(width),   0,                  MM2INCH(thickness) },
-            { 0,                0,                  MM2INCH(thickness) }
+            { 0, 0, 0 },
+            { X, 0, 0 },
+            { X, 0, Z },
+            { 0, 0, Z }
         },
         {
-            { 0,                MM2INCH(height),    0 },
-            { 0,                MM2INCH(height),    MM2INCH(thickness) },
-            { MM2INCH(width),   MM2INCH(height),    MM2INCH(thickness) },
-            { MM2INCH(width),   MM2INCH(height),    0 },
+            { 0, Y, 0 },
+            { 0, Y, Z },
+            { X, Y, Z },
+            { X, Y, 0 },
         },
         {
-            { 0,                0,                  0 },
-            { 0,                0,                  MM2INCH(thickness) },
-            { 0,                MM2INCH(height),    MM2INCH(thickness) },
-            { 0,                MM2INCH(height),    0 },
+            { 0, 0, 0 },
+            { 0, 0, Z },
+            { 0, Y, Z },
+            { 0, Y, 0 },
         },
         {
-            { MM2INCH(width),   0,                  0 },
-            { MM2INCH(width),   MM2INCH(height),    0 },
-            { MM2INCH(width),   MM2INCH(height),    MM2INCH(thickness) },
-            { MM2INCH(width),   0,                  MM2INCH(thickness) },
+            { X, 0, 0 },
+            { X, Y, 0 },
+            { X, Y, Z },
+            { X, 0, Z },
         },
     };
 
@@ -750,7 +754,8 @@ static void _create_detail_components(SUModelRef model,
     SUEntitiesRef instance_entities = SU_INVALID;
     SU_CALL(SUComponentDefinitionGetEntities(definition, &instance_entities));
 
-    _create_detail(instance_entities, detail_def->width, detail_def->height, detail_def->thickness);
+    // Create detail component
+    _create_detail_component(instance_entities, detail_def);
 
     _max_detail_position_X = MAX(_max_detail_position_X, _last_detail_position_X);
     _max_detail_position_Y = MAX(_max_detail_position_Y, _last_detail_position_Y);
