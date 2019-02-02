@@ -8,9 +8,12 @@
 #include <SketchUpAPI/model/edge.h>
 #include <SketchUpAPI/model/vertex.h>
 
+#include <SketchUpAPI/color.h>
 #include <SketchUpAPI/model/component_instance.h>
 #include <SketchUpAPI/model/component_definition.h>
 #include <SketchUpAPI/model/group.h>
+#include <SketchUpAPI/model/material.h>
+#include <SketchUpAPI/model/texture.h>
 #include <vector>
 
 #define PRINT_COUNT(func, ...) do { \
@@ -183,9 +186,9 @@ static void _list_entities(SUEntitiesRef entities, const char *prefix)
 
 int main(int argc, char **argv)
 {
-	const char *skp_filename = (argc == 1) ? "model.skp" : argv[1];
+    const char *skp_filename = (argc == 1) ? "model.skp" : argv[1];
     const char *prefix = "model";
-	printf("reading '%s'...\n", skp_filename);
+    printf("reading '%s'...\n", skp_filename);
 
     // Always initialize the API before using it
     SUInitialize();
@@ -319,6 +322,85 @@ int main(int argc, char **argv)
                 PRINT_COUNT(SUComponentDefinitionGetNumUsedInstances, component);
                 PRINT_COUNT(SUComponentDefinitionGetNumInstances, component);
                 PRINT_COUNT(SUComponentDefinitionGetNumOpenings, component);
+            }
+            else
+            {
+                printf("invalid instance %zd\n", i);
+            }
+        }
+    }
+
+
+    size_t num_materials = 0;
+    SUModelGetNumMaterials(model, &num_materials);
+    printf("%s: num_materials=%zd\n", prefix, num_materials);
+
+    if (num_materials > 0)
+    {
+        std::vector<SUMaterialRef> materials(num_materials);
+        SUModelGetMaterials(model, num_materials,
+                            &materials[0], &num_materials);
+
+        for (size_t i = 0; i < num_materials; i++) {
+            SUMaterialRef material = materials[i];
+            if (!SUIsInvalid(material))
+            {
+                if (1)
+                {
+                    SUStringRef name = SU_INVALID;
+                    SUStringCreate(&name);
+                    SUMaterialGetName(material, &name);
+                    size_t name_length = 0;
+                    SUStringGetUTF8Length(name, &name_length);
+                    char* name_utf8 = new char[name_length + 1];
+                    SUStringGetUTF8(name, name_length + 1, name_utf8, &name_length);
+                    // Now we have the name in a form we can use
+                    SUStringRelease(&name);
+                    printf("%s: name='%s'\n", prefix, name_utf8);
+                    delete []name_utf8;
+                }
+
+                if (1)
+                {
+                    SUColor color;
+                    SUMaterialGetColor(material, &color);
+                    printf("%s: color=rgb(%d,%d,%d,%d)\n", prefix,
+                           color.red, color.green, color.blue, color.alpha);
+                }
+
+                if (1)
+                {
+                    SUTextureRef texture;
+                    SUMaterialGetTexture(material, &texture);
+                }
+
+                if (1)
+                {
+                    double alpha;
+                    SUMaterialGetOpacity(material, &alpha);
+                    printf("%s: Opacity=%f\n", prefix, alpha);
+                }
+
+                if (1)
+                {
+                    bool use_opacity;
+                    SUMaterialGetUseOpacity(material, &use_opacity);
+                    printf("%s: UseOpacity=%d\n", prefix, use_opacity);
+                }
+
+                if (1)
+                {
+                    enum SUMaterialType type;
+                    SUMaterialGuse_opacityetType(material, &type);
+                    printf("%s: type=%d\n", prefix, type);
+                }
+
+                if (1)
+                {
+                    bool transparency;
+                    SUMaterialIsDrawnTransparent(material, &transparency);
+                    printf("%s: transparency=%d\n", prefix, transparency);
+                }
             }
             else
             {
