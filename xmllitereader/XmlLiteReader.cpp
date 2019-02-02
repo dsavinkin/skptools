@@ -771,9 +771,8 @@ static void _create_detail_components(SUModelRef model,
         {
             printf("x-2 ");
             _last_detail_position_X = _max_detail_position_X + DISTANCE_X;
-            //_last_detail_position_X = 0;
             _last_detail_position_Y = 0;
-            //_last_detail_position_Y = _max_detail_position_Y + DISTANCE_Y;
+            _max_detail_position_X = MAX(_max_detail_position_X, _last_detail_position_X + detail_def->width);
             _detail_position_direction = 1;
         }
         else
@@ -789,10 +788,9 @@ static void _create_detail_components(SUModelRef model,
         if ((_max_detail_position_Y > 0) && (_last_detail_position_Y + detail_def->height > _max_detail_position_Y))
         {
             printf("y-2 ");
-            //_last_detail_position_X = _max_detail_position_X + DISTANCE_X;
             _last_detail_position_X = 0;
-            //_last_detail_position_Y = 0;
             _last_detail_position_Y = _max_detail_position_Y + DISTANCE_Y;
+            _max_detail_position_Y = MAX(_max_detail_position_Y, _last_detail_position_Y + detail_def->height);
             _detail_position_direction = 0;
         }
         else
