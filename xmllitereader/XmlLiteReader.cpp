@@ -701,42 +701,51 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
     double Y = MM2INCH(d->height);
     double Z = MM2INCH(d->thickness);
 
+/*
+    SIDE_FRONT,
+    SIDE_LEFT,
+    SIDE_TOP,
+    SIDE_RIGHT,
+    SIDE_BOTTOM,
+    SIDE_BACK
+*/
+
     SUPoint3D sides[6][4] = {
-        {
-            { 0, 0, 0 },
-            { 0, Y, 0 },
-            { X, Y, 0 },
-            { X, 0, 0 },
-        },
-        {
+        {   //SIDE_FRONT
             { 0, 0, Z },
             { X, 0, Z },
             { X, Y, Z },
             { 0, Y, Z },
         },
-        {
+        {   //SIDE_LEFT
+            { 0, 0, 0 },
+            { 0, 0, Z },
+            { 0, Y, Z },
+            { 0, Y, 0 },
+        },
+        {   //
+            { 0, Y, 0 },
+            { 0, Y, Z },
+            { X, Y, Z },
+            { X, Y, 0 },
+        },
+        {   //SIDE_RIGHT
             { 0, 0, 0 },
             { X, 0, 0 },
             { X, 0, Z },
             { 0, 0, Z }
         },
-        {
-            { 0, Y, 0 },
-            { 0, Y, Z },
-            { X, Y, Z },
-            { X, Y, 0 },
-        },
-        {
-            { 0, 0, 0 },
-            { 0, 0, Z },
-            { 0, Y, Z },
-            { 0, Y, 0 },
-        },
-        {
+        {   //
             { X, 0, 0 },
             { X, Y, 0 },
             { X, Y, Z },
             { X, 0, Z },
+        },
+        {   //SIDE_BACK
+            { 0, 0, 0 },
+            { 0, Y, 0 },
+            { X, Y, 0 },
+            { X, 0, 0 },
         },
     };
 
@@ -747,7 +756,6 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
         {
             int m_id = d->m_bands[i+1];
             MATERIAL_DEF_T *m = &materials[m_id-1];
-            printf("Add band material %d for side %zd\n", m_id, i);
             material = m->material;
         }
 
