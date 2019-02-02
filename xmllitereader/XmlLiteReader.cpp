@@ -68,6 +68,14 @@
 #define DISTANCE_Y 50 //mm
 #define DISTANCE_Z 3 //*thickness
 
+#define SIDE_FRONT  0
+#define SIDE_LEFT   1
+#define SIDE_TOP    2
+#define SIDE_RIGHT  3
+#define SIDE_BOTTOM 4
+#define SIDE_BACK   5
+
+
 #define DEFAULT_COLOR_ALPHA_BAND 128
 #define DEFAULT_COLOR_ALPHA_SHEET 128
 
@@ -93,16 +101,6 @@ typedef enum {
     DETAIL_EDGES,
     DETAIL_OPERATIONS
 } DETAIL_STATE_T;
-
-typedef enum {
-    SIDE_UNDEFINED = 0,
-    SIDE_FRONT,
-    SIDE_LEFT,
-    SIDE_TOP,
-    SIDE_RIGHT,
-    SIDE_BOTTOM,
-    SIDE_BACK
-} SIDES_T;
 
 typedef enum {
     TYPE_OP_UNDEFINED,
@@ -142,7 +140,7 @@ typedef struct {
     int multiplicity;
     int grain;
     size_t amount;
-    int m_bands[7];
+    int m_bands[6];
     size_t operations_cnt;
     OPERATION_T *operations; //dynamic array
 } DETAIL_DEF_T;
@@ -277,7 +275,7 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                 _detail_state = DETAIL_ATTR;
 
                 DETAIL_DEF_T *d = &details[_details_cnt-1];
-                for (size_t i = 0 ; i <= 6; i++)
+                for (size_t i = 0 ; i < 6; i++)
                 {
                     //Set default material for all bands = material 1
                     d->m_bands[i] = 1;
@@ -866,9 +864,9 @@ static void _add_face(SUEntitiesRef entities, SUPoint3D vertices[4], SUMaterialR
     SU_CALL(SUEntitiesAddFaces(entities, 1, &face));
 }
 
-static void _add_drill(SUEntitiesRef entities, SUPoint3D vertices[4], OPERATION_T *op, bool through)
+static void _add_drill(SUEntitiesRef entities, SUPoint3D corner, OPERATION_T *op, SUVector3D normal, double depth)
 {
-    SUPoint3D center = vertices[0];
+    SUPoint3D center = corner;
 
     double X = MM2INCH(op->x);
     double Y = MM2INCH(op->y);
@@ -880,7 +878,6 @@ static void _add_drill(SUEntitiesRef entities, SUPoint3D vertices[4], OPERATION_
 
     start_point.x += D/2;
 
-    SUVector3D normal = {0, 0, 1};
 
     SUArcCurveRef arccurve = SU_INVALID;
     SU_CALL(SUArcCurveCreate(&arccurve, &center, &start_point, &start_point, &normal, 16));
@@ -919,23 +916,23 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
             { 0, Y, Z },
             { 0, Y, 0 },
         },
-        {   //
+        {   //SIDE_TOP
             { 0, Y, 0 },
             { 0, Y, Z },
             { X, Y, Z },
             { X, Y, 0 },
         },
         {   //SIDE_RIGHT
-            { 0, 0, 0 },
-            { X, 0, 0 },
-            { X, 0, Z },
-            { 0, 0, Z }
-        },
-        {   //
             { X, 0, 0 },
             { X, Y, 0 },
             { X, Y, Z },
             { X, 0, Z },
+        },
+        {   //SIDE_BOTTOM
+            { 0, 0, 0 },
+            { X, 0, 0 },
+            { X, 0, Z },
+            { 0, 0, Z }
         },
         {   //SIDE_BACK
             { 0, 0, 0 },
@@ -945,12 +942,21 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
         },
     };
 
+    SUVector3D normals[6] = {
+        { 0,  0,  1},  //SIDE_FRONT
+        { 1,  0,  0},  //SIDE_LEFT
+        { 0,  1,  0},  //SIDE_TOP
+        {-1,  0,  0},  //SIDE_RIGHT
+        { 0, -1,  0},  //SIDE_BOTTOM
+        { 0,  0, -1},  //SIDE_BACK
+    };
+
     for (size_t i = 0; i < 6; ++i)
     {
         SUMaterialRef material = SU_INVALID;
-        if (d->m_bands[i+1])
+        if (d->m_bands[i])
         {
-            int m_id = d->m_bands[i+1];
+            int m_id = d->m_bands[i];
             MATERIAL_DEF_T *m = &materials[m_id-1];
             material = m->material;
         }
@@ -964,13 +970,20 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
             if ((op->type == TYPE_DRILLING) && (op->side == i+1))
             {
                 drill_cnt++;
-                _add_drill(entities, sides[i], op, op->depth > d->thickness);
+                double depth = op->depth;
+                if (((i+1 == SIDE_FRONT) || (i+1 == SIDE_BACK))
+                        && (depth > d->thickness))
+                {
+                    depth = d->thickness;
+                }
+
+                _add_drill(entities, sides[i][0], op, normals[i], depth);
             }
         }
 
         if (drill_cnt)
         {
-            //printf("drill operations for side %zd side=%zd\n", i+1, drill_cnt);
+            printf("for side %zd drill_cnt=%zd\n", i+1, drill_cnt);
         }
     }
 }
