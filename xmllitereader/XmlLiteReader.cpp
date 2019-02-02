@@ -33,6 +33,7 @@
 #include <SketchUpAPI/model/component_definition.h>
 #include <SketchUpAPI/model/group.h>
 #include <SketchUpAPI/model/material.h>
+#include <SketchUpAPI/model/arccurve.h>
 
 #include <vector>
 
@@ -851,7 +852,6 @@ static void _add_face(SUEntitiesRef entities, SUPoint3D vertices[4], SUMaterialR
         SULoopInputAddVertexIndex(outer_loop, i);
     }
     // Create the face
-    SUFaceRef faces[2] = {SU_INVALID, SU_INVALID};
     SUFaceRef face = SU_INVALID;
 
     SU_CALL(SUFaceCreate(&face, vertices, &outer_loop));
@@ -866,24 +866,27 @@ static void _add_face(SUEntitiesRef entities, SUPoint3D vertices[4], SUMaterialR
     SU_CALL(SUEntitiesAddFaces(entities, 1, &face));
 }
 
-static void _add_drill(SUEntitiesRef entities, SUPoint3D vertices[4], OPERATION_T *op)
+static void _add_drill(SUEntitiesRef entities, SUPoint3D vertices[4], OPERATION_T *op, bool through)
 {
-/*
-    SULoopInputRef outer_loop = SU_INVALID;
+    SUPoint3D center = vertices[0];
 
-    SU_CALL(SULoopInputCreate(&outer_loop));
-    for (size_t i = 0; i < 4; ++i) {
-        SULoopInputAddVertexIndex(outer_loop, i);
-    }
-    // Create the face
-    SUFaceRef faces[2] = {SU_INVALID, SU_INVALID};
-    SUFaceRef face = SU_INVALID;
+    double X = MM2INCH(op->x);
+    double Y = MM2INCH(op->y);
+    double D = MM2INCH(op->d);
 
-    SU_CALL(SUFaceCreate(&face, vertices, &outer_loop));
+    center.x += X;
+    center.y += Y;
+    SUPoint3D start_point = center;
 
-    // Add the face to the entities
-    SU_CALL(SUEntitiesAddFaces(entities, 1, &face));
-*/
+    start_point.x += D/2;
+
+    SUVector3D normal = {0, 0, 1};
+
+    SUArcCurveRef arccurve = SU_INVALID;
+    SU_CALL(SUArcCurveCreate(&arccurve, &center, &start_point, &start_point, &normal, 16));
+
+    // Add the ArcCyrves to the entities
+    SU_CALL(SUEntitiesAddArcCurves(entities, 1, &arccurve));
 }
 
 static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
@@ -961,13 +964,13 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
             if ((op->type == TYPE_DRILLING) && (op->side == i+1))
             {
                 drill_cnt++;
-                _add_drill(entities, sides[i], op);
+                _add_drill(entities, sides[i], op, op->depth > d->thickness);
             }
         }
 
         if (drill_cnt)
         {
-            printf("drill operations for side %zd side=%zd\n", i+1, drill_cnt);
+            //printf("drill operations for side %zd side=%zd\n", i+1, drill_cnt);
         }
     }
 }
