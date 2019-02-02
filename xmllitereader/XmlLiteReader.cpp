@@ -128,6 +128,15 @@ typedef struct {
     SUMaterialRef material;
 } MATERIAL_DEF_T;
 
+typedef enum {
+    TYPE_DRILLING,
+} OPERATION_TYPE_T;
+
+typedef struct {
+    OPERATION_TYPE_T type;
+} OPERATION_T;
+
+
 typedef HRESULT (*attribute_cb)(const WCHAR* elementName,
                                 const WCHAR* LocalName,
                                 const WCHAR* Value,
@@ -885,8 +894,37 @@ int write_new_model()
 
         if (m->type == TYPE_BAND)
         {
+            //Create custom colors based on thickness
+            SUColor color;
+            color.alpha = DEFAULT_COLOR_ALPHA;
+
+            if (m->thickness <= 0.6)
+            {
+                color.red = 0;
+                color.green = 153;
+                color.blue = 0;
+            }
+            else if (m->thickness <= 1.0)
+            {
+                color.red = 101;
+                color.green = 255;
+                color.blue = 255;
+            }
+            else if (m->thickness < 2.0)
+            {
+                color.red = 0;
+                color.green = 0;
+                color.blue = 153;
+            }
+            else if (m->thickness == 2.0)
+            {
+                color.red = 102;
+                color.green = 0;
+                color.blue = 102;
+            }
+
             SU_CALL(SUMaterialCreate(&m->material));
-            SU_CALL(SUMaterialSetColor(m->material, &m->color));
+            SU_CALL(SUMaterialSetColor(m->material, &color));
             SU_CALL(SUModelAddMaterials(model, 1, &m->material));
         }
         else
