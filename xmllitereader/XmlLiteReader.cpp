@@ -155,6 +155,7 @@ typedef enum {
 } MATERIAL_TYPE_T;
 
 typedef struct {
+    char *name;
     MATERIAL_TYPE_T type;
     double thickness;
     SUColor color;
@@ -1278,6 +1279,56 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
 
 }
 
+static void _add_update_material(SUModelRef model, SUMaterialRef *m_ptr, const char *m_name, SUColor *color)
+{
+    bool material_found = false;
+    size_t num_materials = 0;
+    SUMaterialRef material = SU_INVALID;
+    SU_CALL(SUModelGetNumMaterials(model, &num_materials));
+
+    // Find same materials in the model
+    if (num_materials > 0)
+    {
+        std::vector<SUMaterialRef> materials(num_materials);
+        SU_CALL(SUModelGetMaterials(model, num_materials,
+                                    &materials[0], &num_materials));
+
+        for (size_t i = 0; (i < num_materials) && !material_found; i++)
+        {
+            material = materials[i];
+
+            SUStringRef name = SU_INVALID;
+            SU_CALL(SUStringCreate(&name));
+            SU_CALL(SUMaterialGetName(material, &name));
+            size_t name_length = 0;
+            SU_CALL(SUStringGetUTF8Length(name, &name_length));
+            char* name_utf8 = new char[name_length + 1];
+            SU_CALL(SUStringGetUTF8(name, name_length + 1, name_utf8, &name_length));
+            // Now we have the name in a form we can use
+            SU_CALL(SUStringRelease(&name));
+
+            material_found = (strcmp(m_name, name_utf8) == 0);
+            delete []name_utf8;
+        }
+    }
+
+    if (!material_found)
+    {
+        material = SU_INVALID;
+        SU_CALL(SUMaterialCreate(&material));
+        if (m_name != NULL)
+        {
+            SU_CALL(SUMaterialSetName(material, m_name));
+        }
+        SU_CALL(SUModelAddMaterials(model, 1, &material));
+    }
+
+    SU_CALL(SUMaterialSetColor(material, color));
+    SU_CALL(SUMaterialSetType(material, SUMaterialType_Colored));
+
+    *m_ptr = material;
+}
+
 int write_new_model(const WCHAR *model_filename)
 {
     // Always initialize the API before using it
@@ -1334,10 +1385,11 @@ int write_new_model(const WCHAR *model_filename)
                 color.blue = 102;
             }
 
-            //TODO: find same materials in the model
-            SU_CALL(SUMaterialCreate(&m->material));
-            SU_CALL(SUMaterialSetColor(m->material, &color));
-            SU_CALL(SUModelAddMaterials(model, 1, &m->material));
+            char m_name[32];
+            snprintf(m_name, sizeof(m_name), "kromka_%.1f", m->thickness);
+            m->name = _strdup(m_name);
+
+            _add_update_material(model, &m->material, m->name, &color);
         }
         else if (m->type == TYPE_SHEET)
         {
@@ -1347,9 +1399,9 @@ int write_new_model(const WCHAR *model_filename)
             color.green = 255;
             color.blue = 255;
 
-            SU_CALL(SUMaterialCreate(&m->material));
-            SU_CALL(SUMaterialSetColor(m->material, &color));
-            SU_CALL(SUModelAddMaterials(model, 1, &m->material));
+            m->name = _strdup("Sheet");
+
+            _add_update_material(model, &m->material, m->name, &color);
         }
         else
         {
