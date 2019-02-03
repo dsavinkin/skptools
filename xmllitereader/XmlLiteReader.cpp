@@ -1209,7 +1209,7 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
 
 }
 
-int write_new_model()
+int write_new_model(const WCHAR *model_filename)
 {
     // Always initialize the API before using it
     SUInitialize();
@@ -1463,8 +1463,7 @@ int parse_xml(const WCHAR* xmlfilename)
         _dump_detail(&details[i]);
     }
 #endif
-    // TODO: remove this call
-    hr = write_new_model();
+    hr = S_OK;
 
     CHKHR(_model_state == MODEL_CLOSED ? S_OK : E_ABORT);
 
@@ -1477,12 +1476,19 @@ CleanUp:
 
 int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
 {
-    if (argc != 2)
+    if (argc != 3)
     {
-        wprintf(L"Usage: XmlLiteReader.exe name-of-input-file\n");
+        wprintf(L"Usage: XmlLiteReader <viyar_project_file> <sketchup_model_file>\n");
+        wprintf(L"       If sketchup_model_file not present program will create new one\n");
         return 0;
     }
 
-    return parse_xml(argv[1]);
+    HRESULT hr = parse_xml(argv[1]);
 
+    if (FAILED(hr))
+    {
+        return hr;
+    }
+
+    return write_new_model(argv[2]);
 }
