@@ -155,7 +155,6 @@ typedef enum {
 } MATERIAL_TYPE_T;
 
 typedef struct {
-    char *name;
     MATERIAL_TYPE_T type;
     double thickness;
     SUColor color;
@@ -1039,11 +1038,6 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                 _add_drill(entities, sides[i][0], op, normals[i], depth, i);
             }
         }
-
-        if (drill_cnt)
-        {
-            //printf("for side %zd drill_cnt=%zd\n", i+1, drill_cnt);
-        }
     }
 }
 
@@ -1077,11 +1071,9 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
     if (detail_def->name != NULL)
     {
         utf8 = converter.to_bytes(detail_def->name);
-        //printf("Detail name '%s'\n", utf8.c_str());
 
         size_t num_component_def = 0;
         SUModelGetNumComponentDefinitions(model, &num_component_def);
-        //printf("num_component_def=%zd\n", num_component_def);
 
         if (num_component_def > 0)
         {
@@ -1103,13 +1095,12 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
                     SU_CALL(SUStringGetUTF8(name, name_length + 1, name_utf8, &name_length));
                     // Now we have the name in a form we can use
                     SU_CALL(SUStringRelease(&name));
-                    //printf("component name='%s'", name_utf8);
 
                     ComponentFound = (strcmp(utf8.c_str(), name_utf8) == 0);
                     delete []name_utf8;
 
-                    SU_CALL(SUComponentDefinitionGetNumInstances(component, &componentNumInstancesCount));
-                    //SU_CALL(SUComponentDefinitionGetNumUsedInstances(component, &componentNumUsedInstancesCount));
+                    //SU_CALL(SUComponentDefinitionGetNumInstances(component, &componentNumInstancesCount));
+                    SU_CALL(SUComponentDefinitionGetNumUsedInstances(component, &componentNumInstancesCount));
                 }
             }
         }
@@ -1156,7 +1147,6 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
     {
         size_t faceCount = 0;
         SU_CALL(SUEntitiesGetNumFaces(instance_entities, &faceCount));
-        //printf("faceCount=%zd\n", faceCount);
         if (faceCount > 0)
         {
             std::vector<SUFaceRef> faces(faceCount);
@@ -1171,12 +1161,10 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
             SU_CALL(SUEntitiesErase(instance_entities, faceCount, &elements[0]));
 
             SU_CALL(SUEntitiesGetNumFaces(instance_entities, &faceCount));
-            //printf("new faceCount=%zd\n", faceCount);
         }
 
         size_t edgeCount = 0;
         SU_CALL(SUEntitiesGetNumEdges(instance_entities, false, &edgeCount));
-        //printf("edgeCount=%zd\n", edgeCount);
         if (edgeCount > 0)
         {
             std::vector<SUEdgeRef> edges(edgeCount);
@@ -1191,7 +1179,6 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
             SU_CALL(SUEntitiesErase(instance_entities, edgeCount, &elements[0]));
 
             SU_CALL(SUEntitiesGetNumEdges(instance_entities, false, &edgeCount));
-            //printf("new edgeCount=%zd\n", edgeCount);
         }
 
     }
@@ -1387,9 +1374,7 @@ int write_new_model(const WCHAR *model_filename)
 
             char m_name[32];
             snprintf(m_name, sizeof(m_name), "kromka_%.1f", m->thickness);
-            m->name = _strdup(m_name);
-
-            _add_update_material(model, &m->material, m->name, &color);
+            _add_update_material(model, &m->material, m_name, &color);
         }
         else if (m->type == TYPE_SHEET)
         {
@@ -1399,9 +1384,7 @@ int write_new_model(const WCHAR *model_filename)
             color.green = 255;
             color.blue = 255;
 
-            m->name = _strdup("Sheet");
-
-            _add_update_material(model, &m->material, m->name, &color);
+            _add_update_material(model, &m->material, "Sheet", &color);
         }
         else
         {
