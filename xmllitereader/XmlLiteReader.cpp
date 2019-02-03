@@ -205,19 +205,19 @@ void _dump_detail(DETAIL_DEF_T *d)
 
 static HRESULT _model_open_create()
 {
-    wprintf(L"TODO: create/read Model\n");
+    //wprintf(L"TODO: create/read Model\n");
     return S_OK;
 }
 
 static HRESULT _model_save_close()
 {
-    wprintf(L"TODO: save/close Model\n");
+    //wprintf(L"TODO: save/close Model\n");
     return S_OK;
 }
 
 static HRESULT _element_start(const WCHAR* ElementName, void *data)
 {
-    wprintf(L"S %d: Element start (%p) <%s ...\n", _state, data, ElementName);
+    //wprintf(L"S %d: Element start (%p) <%s ...\n", _state, data, ElementName);
 
     switch (_state)
     {
@@ -260,11 +260,11 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
             if (wcscmp(ElementName, L"material") == 0)
             {
                 _materials_cnt++;
-                wprintf(L"TODO: (%d) start adding material\n", _materials_cnt);
+                //wprintf(L"TODO: (%d) start adding material\n", _materials_cnt);
             }
             else
             {
-                wprintf(L"TODO: (%d:%s) continue updating material\n", _materials_cnt, ElementName);
+                //wprintf(L"TODO: (%d:%s) continue updating material\n", _materials_cnt, ElementName);
             }
             break;
 
@@ -280,7 +280,7 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                     //Set default material for all bands = material 1
                     d->m_bands[i] = 1;
                 }
-                wprintf(L"_detail_state = DETAIL_ATTR\n");
+                //wprintf(L"_detail_state = DETAIL_ATTR\n");
 //                wprintf(L"TODO: (%d) start adding detail\n", _details_cnt);
             }
             else
@@ -290,7 +290,7 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                 if (wcscmp(ElementName, L"edges") == 0)
                 {
                     _detail_state = DETAIL_EDGES;
-                    wprintf(L"_detail_state = DETAIL_EDGES\n");
+                    //wprintf(L"_detail_state = DETAIL_EDGES\n");
                 }
                 else if (wcscmp(ElementName, L"edge") == 0)
                 {
@@ -302,7 +302,7 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                 else if (wcscmp(ElementName, L"operations") == 0)
                 {
                     _detail_state = DETAIL_OPERATIONS;
-                    wprintf(L"_detail_state = DETAIL_OPERATIONS\n");
+                    //wprintf(L"_detail_state = DETAIL_OPERATIONS\n");
                 }
                 else if (wcscmp(ElementName, L"operation") == 0)
                 {
@@ -332,7 +332,7 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
 
 static HRESULT _element_end(const WCHAR* ElementName, void *data)
 {
-    wprintf(L"S %d: End element </%s> (%p)\n", _state, ElementName, data);
+    //wprintf(L"S %d: End element </%s> (%p)\n", _state, ElementName, data);
 
     switch (_state)
     {
@@ -351,8 +351,7 @@ static HRESULT _element_end(const WCHAR* ElementName, void *data)
 
             if (wcscmp(ElementName, L"material") == 0)
             {
-                wprintf(L"TODO: add material (%d) to Model\n", _materials_cnt);
-
+                //wprintf(L"TODO: add material (%d) to Model\n", _materials_cnt);
             }
             else if (wcscmp(ElementName, L"materials") == 0)
             {
@@ -363,7 +362,7 @@ static HRESULT _element_end(const WCHAR* ElementName, void *data)
         case STATE_DETAILS:
             if (wcscmp(ElementName, L"detail") == 0)
             {
-                wprintf(L"TODO: add detail (%d) to Model\n", _details_cnt);
+                //wprintf(L"TODO: add detail (%d) to Model\n", _details_cnt);
             }
             else if (wcscmp(ElementName, L"details") == 0)
             {
