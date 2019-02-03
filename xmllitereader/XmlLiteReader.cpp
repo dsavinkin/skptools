@@ -64,7 +64,7 @@
 #define INCH2MM(x) ((x)*25.4)
 
 #ifndef SU_CALL
-#define SU_CALL(func) if ((func) != SU_ERROR_NONE) throw std::exception()
+#define SU_CALL(func) if ((func) != SU_ERROR_NONE) { printf("Error on Line %d\n", __LINE__); throw std::exception(); }
 #endif
 
 #define DISTANCE_X 50 //mm
@@ -1215,7 +1215,17 @@ int write_new_model(const WCHAR *model_filename)
     SUInitialize();
     // Create an empty model
     SUModelRef model = SU_INVALID;
-    SU_CALL(SUModelCreate(&model));
+
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+    std::string model_filename_utf8;
+    model_filename_utf8 = converter.to_bytes(model_filename);
+    printf("Model file is '%s'\n", model_filename_utf8.c_str());
+
+    if (SUModelCreateFromFile(&model, model_filename_utf8.c_str()) != SU_ERROR_NONE)
+    {
+        wprintf(L"Unable to open model file '%s' - will create new one.\n", model_filename);
+        SU_CALL(SUModelCreate(&model));
+    }
 
     //Add materials to the model and save them as materials[].material
     for (size_t i = 0; i < _materials_cnt; i++)
