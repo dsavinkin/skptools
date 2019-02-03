@@ -1052,11 +1052,20 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
     std::string utf8;
     SUEntitiesRef entities = SU_INVALID;
     SUComponentDefinitionRef component = SU_INVALID;
+    SUComponentInstanceRef instance = SU_INVALID;
     size_t componentNumInstancesCount = 0;
     bool ComponentFound = false;
 
-    SU_CALL(SUModelGetEntities(model, &entities));
+    //faces locations inside the component_def
+    struct SUTransformation transform = {
+        {
+            1.0,    0.0,    0.0,    0.0,
+            0.0,    1.0,    0.0,    0.0,
+            0.0,    0.0,    1.0,    0.0,
+            0.0,    0.0,    0.0,    1,
+        } };
 
+    SU_CALL(SUModelGetEntities(model, &entities));
 
     if (detail_def->name != NULL)
     {
@@ -1103,6 +1112,8 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
     {
         printf("Found component with name '%s', instances =%zd (required %zd) - update it.\n",
                 utf8.c_str(), componentNumInstancesCount, detail_def->amount);
+
+        printf("TODO: update component instance_entities\n");
     }
     else
     {
@@ -1114,32 +1125,22 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
             printf("Set component name '%s'\n", utf8.c_str());
             SU_CALL(SUComponentDefinitionSetName(component, utf8.c_str()));
         }
+
+        SU_CALL(SUModelAddComponentDefinitions(model, 1, &component));
+
+        // Add instance for this definition
+        SU_CALL(SUComponentDefinitionCreateInstance(component, &instance));
+
+        // Set the transformation
+        SU_CALL(SUComponentInstanceSetTransform(instance, &transform));
+
+        // Populate the entities of the definition using recursion
+        SUEntitiesRef instance_entities = SU_INVALID;
+        SU_CALL(SUComponentDefinitionGetEntities(component, &instance_entities));
+
+          // Create detail component
+        _create_detail_component(instance_entities, detail_def);
     }
-
-    SU_CALL(SUModelAddComponentDefinitions(model, 1, &component));
-
-    // Add instance for this definition
-    SUComponentInstanceRef instance = SU_INVALID;
-    SU_CALL(SUComponentDefinitionCreateInstance(component, &instance));
-
-    //faces locations inside the component_def
-    struct SUTransformation transform = {
-            {
-                1.0,    0.0,    0.0,    0.0,
-                0.0,    1.0,    0.0,    0.0,
-                0.0,    0.0,    1.0,    0.0,
-                0.0,    0.0,    0.0,    1,
-            } };
-
-    // Set the transformation
-    SU_CALL(SUComponentInstanceSetTransform(instance, &transform));
-
-    // Populate the entities of the definition using recursion
-    SUEntitiesRef instance_entities = SU_INVALID;
-    SU_CALL(SUComponentDefinitionGetEntities(component, &instance_entities));
-
-    // Create detail component
-    _create_detail_component(instance_entities, detail_def);
 
     _max_detail_position_X = MAX(_max_detail_position_X, _last_detail_position_X);
     _max_detail_position_Y = MAX(_max_detail_position_Y, _last_detail_position_Y);
