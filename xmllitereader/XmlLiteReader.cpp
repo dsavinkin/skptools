@@ -36,6 +36,9 @@
 #include <SketchUpAPI/model/arccurve.h>
 
 #include <vector>
+#include <iostream>
+#include <codecvt>
+#include <locale>
 
 /***************************************************************/
 /*                     Local Definitions                       */
@@ -535,6 +538,24 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                 else if (wcscmp(LocalName, L"description") == 0)
                 {
                     wprintf(L"description='%s'\n", Value);
+                    if (wcslen(Value) > 0)
+                    {
+                        //std::string str = "zzzAAA";
+                        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+                        //std::wstring wstr = converter.from_bytes(str);
+                        std::string utf8 = converter.to_bytes(Value);
+                        //std::cout << utf8 << std::endl;
+
+                        d->name = _strdup(utf8.c_str());
+
+                        //wstring_convert<codecvt_utf8<wchar_t>> utf8_conv;
+                        //cout << utf8_conv.to_bytes(Value) << '\n';
+
+                    }
+                    else
+                    {
+                        //awsprintf(&d->name, "detail_%d", _details_cnt);
+                    }
                     //TODO: d->description = wstrdup(Value);
                 }
                 else if (wcscmp(LocalName, L"grain") == 0)
@@ -1050,7 +1071,11 @@ static void _create_detail_components(SUModelRef model,
     SU_CALL(SUComponentDefinitionCreate(&definition));
     if (detail_def->name != NULL)
     {
-        SU_CALL(SUComponentDefinitionSetName(definition, detail_def->name));
+        //SU_CALL(SUComponentDefinitionSetName(definition, detail_def->name));
+        if (detail_def->amount == 10)
+        {
+            SU_CALL(SUComponentDefinitionSetName(definition, "Дно ящика (dno yaschika)"));
+        }
     }
     SU_CALL(SUModelAddComponentDefinitions(model, 1, &definition));
 
