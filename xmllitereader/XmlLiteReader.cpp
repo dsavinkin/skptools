@@ -1065,6 +1065,12 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
             0.0,    0.0,    0.0,    1,
         } };
 
+    if (detail_def->amount == 0)
+    {
+        wprintf(L"detail_def->amount = 0 - skip adding component.");
+        return;
+    }
+
     SU_CALL(SUModelGetEntities(model, &entities));
 
     if (detail_def->name != NULL)
@@ -1112,8 +1118,6 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
     {
         printf("Found component with name '%s', instances =%zd (required %zd) - update it.\n",
                 utf8.c_str(), componentNumInstancesCount, detail_def->amount);
-
-        printf("TODO: update component instance_entities\n");
     }
     else
     {
@@ -1127,84 +1131,149 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
         }
 
         SU_CALL(SUModelAddComponentDefinitions(model, 1, &component));
+    }
 
+    if (componentNumInstancesCount > 0)
+    {
+        size_t instance_count;
+        SU_CALL(SUComponentDefinitionGetInstances(component, 1, &instance, &instance_count));
+    }
+    else
+    {
         // Add instance for this definition
         SU_CALL(SUComponentDefinitionCreateInstance(component, &instance));
 
-        // Set the transformation
+        // Set default transformation for new component
         SU_CALL(SUComponentInstanceSetTransform(instance, &transform));
-
-        // Populate the entities of the definition using recursion
-        SUEntitiesRef instance_entities = SU_INVALID;
-        SU_CALL(SUComponentDefinitionGetEntities(component, &instance_entities));
-
-          // Create detail component
-        _create_detail_component(instance_entities, detail_def);
     }
 
-    _max_detail_position_X = MAX(_max_detail_position_X, _last_detail_position_X);
-    _max_detail_position_Y = MAX(_max_detail_position_Y, _last_detail_position_Y);
+    // Populate the entities of the definition using recursion
+    SUEntitiesRef instance_entities = SU_INVALID;
+    SU_CALL(SUComponentDefinitionGetEntities(component, &instance_entities));
 
-    // Do position determination (depending on target detail size)
-    if (_detail_position_direction == 0)
+    if (ComponentFound)
     {
-        if ((_max_detail_position_X > 0) && (_last_detail_position_X + detail_def->width > _max_detail_position_X))
+        size_t faceCount = 0;
+        SU_CALL(SUEntitiesGetNumFaces(instance_entities, &faceCount));
+        //printf("faceCount=%zd\n", faceCount);
+        if (faceCount > 0)
         {
-            _last_detail_position_X = _max_detail_position_X + DISTANCE_X;
-            _last_detail_position_Y = 0;
-            _max_detail_position_X = MAX(_max_detail_position_X, _last_detail_position_X + detail_def->width);
-            _detail_position_direction = 1;
+            std::vector<SUFaceRef> faces(faceCount);
+            SU_CALL(SUEntitiesGetFaces(instance_entities, faceCount, &faces[0], &faceCount));
+            std::vector<SUEntityRef> elements(faceCount);
+            for (size_t i = 0; i < faceCount; i++)
+            {
+                elements[i] = SUFaceToEntity(faces[i]);
+            }
+
+            // Erase all faces from component
+            SU_CALL(SUEntitiesErase(instance_entities, faceCount, &elements[0]));
+
+            SU_CALL(SUEntitiesGetNumFaces(instance_entities, &faceCount));
+            //printf("new faceCount=%zd\n", faceCount);
+        }
+
+        size_t edgeCount = 0;
+        SU_CALL(SUEntitiesGetNumEdges(instance_entities, false, &edgeCount));
+        //printf("edgeCount=%zd\n", edgeCount);
+        if (edgeCount > 0)
+        {
+            std::vector<SUEdgeRef> edges(edgeCount);
+            SU_CALL(SUEntitiesGetEdges(instance_entities, false, edgeCount, &edges[0], &edgeCount));
+            std::vector<SUEntityRef> elements(edgeCount);
+            for (size_t i = 0; i < edgeCount; i++)
+            {
+                elements[i] = SUEdgeToEntity(edges[i]);
+            }
+
+            // Erase all faces from component
+            SU_CALL(SUEntitiesErase(instance_entities, edgeCount, &elements[0]));
+
+            SU_CALL(SUEntitiesGetNumEdges(instance_entities, false, &edgeCount));
+            //printf("new edgeCount=%zd\n", edgeCount);
+        }
+
+    }
+
+    // Create detail component
+    _create_detail_component(instance_entities, detail_def);
+
+/*
+    size_t edgeCount = 0;
+    SU_CALL(SUEntitiesGetNumEdges(instance_entities, false, &edgeCount));
+    printf("and now edgeCount=%zd\n", edgeCount);
+*/
+    if (detail_def->amount > componentNumInstancesCount)
+    {
+        // Need to add some component instances to the model
+        _max_detail_position_X = MAX(_max_detail_position_X, _last_detail_position_X);
+        _max_detail_position_Y = MAX(_max_detail_position_Y, _last_detail_position_Y);
+
+        // Do position determination (depending on target detail size)
+        if (_detail_position_direction == 0)
+        {
+            if ((_max_detail_position_X > 0) && (_last_detail_position_X + detail_def->width > _max_detail_position_X))
+            {
+                _last_detail_position_X = _max_detail_position_X + DISTANCE_X;
+                _last_detail_position_Y = 0;
+                _max_detail_position_X = MAX(_max_detail_position_X, _last_detail_position_X + detail_def->width);
+                _detail_position_direction = 1;
+            }
+            else
+            {
+                //Update _max_detail_position_Y to size of detail
+                _max_detail_position_Y = MAX(_max_detail_position_Y, _last_detail_position_Y + detail_def->height);
+            }
         }
         else
         {
-            //Update _max_detail_position_Y to size of detail
-            _max_detail_position_Y = MAX(_max_detail_position_Y, _last_detail_position_Y + detail_def->height);
+            if ((_max_detail_position_Y > 0) && (_last_detail_position_Y + detail_def->height > _max_detail_position_Y))
+            {
+                _last_detail_position_Y = _max_detail_position_Y + DISTANCE_Y;
+                _last_detail_position_X = 0;
+                _max_detail_position_Y = MAX(_max_detail_position_Y, _last_detail_position_Y + detail_def->height);
+                _detail_position_direction = 0;
+            }
+            else
+            {
+                //Update _max_detail_position_Y to size of detail
+                _max_detail_position_X = MAX(_max_detail_position_X, _last_detail_position_X + detail_def->width);
+            }
         }
-    }
-    else
-    {
-        if ((_max_detail_position_Y > 0) && (_last_detail_position_Y + detail_def->height > _max_detail_position_Y))
+
+        //component instance location
+        transform.values[12] = MM2INCH(_last_detail_position_X);
+        transform.values[13] = MM2INCH(_last_detail_position_Y);
+
+        // Update _last_detail_position
+        if (_detail_position_direction == 0)
         {
-            _last_detail_position_Y = _max_detail_position_Y + DISTANCE_Y;
-            _last_detail_position_X = 0;
-            _max_detail_position_Y = MAX(_max_detail_position_Y, _last_detail_position_Y + detail_def->height);
-            _detail_position_direction = 0;
+            _last_detail_position_X += DISTANCE_X + detail_def->width;
         }
         else
         {
-            //Update _max_detail_position_Y to size of detail
-            _max_detail_position_X = MAX(_max_detail_position_X, _last_detail_position_X + detail_def->width);
+            _last_detail_position_Y += DISTANCE_Y + detail_def->height;
+        }
+
+        SU_CALL(SUComponentInstanceSetTransform(instance, &transform));
+        SU_CALL(SUEntitiesAddInstance(entities, instance, NULL));
+
+        for (size_t i = componentNumInstancesCount+1; i < detail_def->amount; i++)
+        {
+            transform.values[14] = MM2INCH(i*detail_def->thickness * DISTANCE_Z);
+
+            SUComponentInstanceRef instance2 = SU_INVALID;
+            SU_CALL(SUComponentDefinitionCreateInstance(component, &instance2));
+
+            // Set the transformation
+            SU_CALL(SUComponentInstanceSetTransform(instance2, &transform));
+            SU_CALL(SUEntitiesAddInstance(entities, instance2, NULL));
         }
     }
-
-    //component instance location
-    transform.values[12] = MM2INCH(_last_detail_position_X);
-    transform.values[13] = MM2INCH(_last_detail_position_Y);
-
-
-    // Update _last_detail_position
-    if (_detail_position_direction == 0)
+    else if (detail_def->amount < componentNumInstancesCount)
     {
-        _last_detail_position_X += DISTANCE_X + detail_def->width;
-    }
-    else
-    {
-        _last_detail_position_Y += DISTANCE_Y + detail_def->height;
-    }
-
-    SU_CALL(SUComponentInstanceSetTransform(instance, &transform));
-    SU_CALL(SUEntitiesAddInstance(entities, instance, NULL));
-
-    for (size_t i = 1; i < detail_def->amount; i++)
-    {
-        transform.values[14] = MM2INCH(i*detail_def->thickness * DISTANCE_Z);
-
-        SUComponentInstanceRef instance2 = SU_INVALID;
-        SU_CALL(SUComponentDefinitionCreateInstance(component, &instance2));
-
-        // Set the transformation
-        SU_CALL(SUComponentInstanceSetTransform(instance2, &transform));
-        SU_CALL(SUEntitiesAddInstance(entities, instance2, NULL));
+        wprintf(L"TODO: need to remove some components instances (required %zd but %zd present)\n",
+                detail_def->amount, componentNumInstancesCount);
     }
 
 }
@@ -1265,6 +1334,7 @@ int write_new_model(const WCHAR *model_filename)
                 color.blue = 102;
             }
 
+            //TODO: find same materials in the model
             SU_CALL(SUMaterialCreate(&m->material));
             SU_CALL(SUMaterialSetColor(m->material, &color));
             SU_CALL(SUModelAddMaterials(model, 1, &m->material));
@@ -1297,7 +1367,7 @@ int write_new_model(const WCHAR *model_filename)
     }
 
     // Save the in-memory model to a file
-    SU_CALL(SUModelSaveToFile(model, "new_model.skp"));
+    SU_CALL(SUModelSaveToFile(model, model_filename_utf8.c_str()));
     SU_CALL(SUModelSaveToFileWithVersion(model, "new_model_SU2017.skp", SUModelVersion_SU2017));
     SU_CALL(SUModelSaveToFileWithVersion(model, "new_model_SU2016.skp", SUModelVersion_SU2016));
     SU_CALL(SUModelSaveToFileWithVersion(model, "new_model_SU3.skp", SUModelVersion_SU3)); //oldest supported version
