@@ -1046,29 +1046,81 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
     }
 }
 
-static void _create_detail_components(SUModelRef model,
-                                      DETAIL_DEF_T *detail_def)
+static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail_def)
 {
-
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+    std::string utf8;
     SUEntitiesRef entities = SU_INVALID;
+    SUComponentDefinitionRef component = SU_INVALID;
+    size_t componentNumInstancesCount = 0;
+    bool ComponentFound = false;
+
     SU_CALL(SUModelGetEntities(model, &entities));
 
-    SUComponentDefinitionRef definition = SU_INVALID;
-    SU_CALL(SUComponentDefinitionCreate(&definition));
+
     if (detail_def->name != NULL)
     {
-        std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-        std::string utf8 = converter.to_bytes(detail_def->name);
+        utf8 = converter.to_bytes(detail_def->name);
+        //printf("Detail name '%s'\n", utf8.c_str());
 
-        printf("Set component name '%s'\n", utf8.c_str());
+        size_t num_component_def = 0;
+        SUModelGetNumComponentDefinitions(model, &num_component_def);
+        //printf("num_component_def=%zd\n", num_component_def);
 
-        SU_CALL(SUComponentDefinitionSetName(definition, utf8.c_str()));
+        if (num_component_def > 0)
+        {
+            std::vector<SUComponentDefinitionRef> components(num_component_def);
+            SUModelGetComponentDefinitions(model, num_component_def,
+                                           &components[0], &num_component_def);
+
+            for (size_t i = 0; (i < num_component_def) && !ComponentFound; i++)
+            {
+                component = components[i];
+                if (!SUIsInvalid(component))
+                {
+                    SUStringRef name = SU_INVALID;
+                    SU_CALL(SUStringCreate(&name));
+                    SU_CALL(SUComponentDefinitionGetName(component, &name));
+                    size_t name_length = 0;
+                    SU_CALL(SUStringGetUTF8Length(name, &name_length));
+                    char* name_utf8 = new char[name_length + 1];
+                    SU_CALL(SUStringGetUTF8(name, name_length + 1, name_utf8, &name_length));
+                    // Now we have the name in a form we can use
+                    SU_CALL(SUStringRelease(&name));
+                    //printf("component name='%s'", name_utf8);
+
+                    ComponentFound = (strcmp(utf8.c_str(), name_utf8) == 0);
+                    delete []name_utf8;
+
+                    SU_CALL(SUComponentDefinitionGetNumInstances(component, &componentNumInstancesCount));
+                    //SU_CALL(SUComponentDefinitionGetNumUsedInstances(component, &componentNumUsedInstancesCount));
+                }
+            }
+        }
     }
-    SU_CALL(SUModelAddComponentDefinitions(model, 1, &definition));
+
+    if (ComponentFound)
+    {
+        printf("Found component with name '%s', instances =%zd (required %zd) - update it.\n",
+                utf8.c_str(), componentNumInstancesCount, detail_def->amount);
+    }
+    else
+    {
+        componentNumInstancesCount = 0;
+        component = SU_INVALID;
+        SU_CALL(SUComponentDefinitionCreate(&component));
+        if (detail_def->name != NULL)
+        {
+            printf("Set component name '%s'\n", utf8.c_str());
+            SU_CALL(SUComponentDefinitionSetName(component, utf8.c_str()));
+        }
+    }
+
+    SU_CALL(SUModelAddComponentDefinitions(model, 1, &component));
 
     // Add instance for this definition
     SUComponentInstanceRef instance = SU_INVALID;
-    SU_CALL(SUComponentDefinitionCreateInstance(definition, &instance));
+    SU_CALL(SUComponentDefinitionCreateInstance(component, &instance));
 
     //faces locations inside the component_def
     struct SUTransformation transform = {
@@ -1084,7 +1136,7 @@ static void _create_detail_components(SUModelRef model,
 
     // Populate the entities of the definition using recursion
     SUEntitiesRef instance_entities = SU_INVALID;
-    SU_CALL(SUComponentDefinitionGetEntities(definition, &instance_entities));
+    SU_CALL(SUComponentDefinitionGetEntities(component, &instance_entities));
 
     // Create detail component
     _create_detail_component(instance_entities, detail_def);
@@ -1147,7 +1199,7 @@ static void _create_detail_components(SUModelRef model,
         transform.values[14] = MM2INCH(i*detail_def->thickness * DISTANCE_Z);
 
         SUComponentInstanceRef instance2 = SU_INVALID;
-        SU_CALL(SUComponentDefinitionCreateInstance(definition, &instance2));
+        SU_CALL(SUComponentDefinitionCreateInstance(component, &instance2));
 
         // Set the transformation
         SU_CALL(SUComponentInstanceSetTransform(instance2, &transform));
@@ -1230,7 +1282,7 @@ int write_new_model()
         printf("Detail %zd:\n", i);
         _dump_detail(&details[i]);
 #endif
-        _create_detail_components(model, &details[i]);
+        _add_update_detail_components(model, &details[i]);
     }
 
     // Save the in-memory model to a file
