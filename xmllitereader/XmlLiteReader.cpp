@@ -534,6 +534,7 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                 }
                 else if (wcscmp(LocalName, L"description") == 0)
                 {
+                    wprintf(L"description='%s'\n", Value);
                     //TODO: d->description = wstrdup(Value);
                 }
                 else if (wcscmp(LocalName, L"grain") == 0)
@@ -1238,6 +1239,7 @@ int parse_xml(const WCHAR* xmlfilename)
     HRESULT hr = S_OK;
     IStream *pFileStream = NULL;
     IXmlReader *pReader = NULL;
+    IXmlReaderInput *xmlReaderInput = NULL;
     XmlNodeType nodeType;
     const WCHAR* pwszPrefix;
     const WCHAR* pwszLocalName;
@@ -1257,13 +1259,20 @@ int parse_xml(const WCHAR* xmlfilename)
         HR(hr);
     }
 
+    if (FAILED(hr = CreateXmlReaderInputWithEncodingName(pFileStream, nullptr, L"windows-1251", FALSE,
+                    L"c:\temp", &xmlReaderInput)))
+    {
+        wprintf(L"Error creating xml reader with encoding code page, error is %08.8lx", hr);
+        HR(hr);
+    }
+
     if (FAILED(hr = pReader->SetProperty(XmlReaderProperty_DtdProcessing, DtdProcessing_Prohibit)))
     {
         wprintf(L"Error setting XmlReaderProperty_DtdProcessing, error is %08.8lx", hr);
         HR(hr);
     }
 
-    if (FAILED(hr = pReader->SetInput(pFileStream)))
+    if (FAILED(hr = pReader->SetInput(xmlReaderInput)))
     {
         wprintf(L"Error setting input for reader, error is %08.8lx", hr);
         HR(hr);
