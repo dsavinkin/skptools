@@ -78,6 +78,12 @@
 #define SIDE_BOTTOM 4
 #define SIDE_BACK   5
 
+#define CORNER_LOWER_LEFT   0
+#define CORNER_UPPER_LEFT   1
+#define CORNER_UPPER_RIGHT  2
+#define CORNER_LOWER_RIGHT  3
+#define CORNER_MAX          4
+
 
 #define DEFAULT_COLOR_ALPHA_BAND 128
 #define DEFAULT_COLOR_ALPHA_SHEET 128
@@ -114,6 +120,12 @@ typedef enum {
     TYPE_CORNEROPERATION,
 } OPERATION_TYPE_T;
 
+typedef enum {
+    EDGE_COVER_BOTH=0,
+    EDGE_COVER_H,
+    EDGE_COVER_V
+} EDGE_COVER_T;
+
 typedef struct {
     OPERATION_TYPE_T type;
     int side;
@@ -125,12 +137,15 @@ typedef struct {
     double d;
     double depth;
     double millD;
+    double r;
     int mill;
+    int ext;
     int edgeMaterial;
     int edgeCovering;
     WCHAR *xl;
     WCHAR *yl;
-    WCHAR *subtype;
+    //WCHAR *subtype;
+    int subtype;
 } OPERATION_T;
 
 typedef struct {
@@ -684,7 +699,8 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                 }
                 else if (wcscmp(LocalName, L"subtype") == 0)
                 {
-                    op->subtype = _wcsdup(Value);
+                    //op->subtype = _wcsdup(Value);
+					op->subtype = _wtol(Value);
                 }
                 else if (wcscmp(LocalName, L"xl") == 0)
                 {
@@ -714,6 +730,10 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                 {
                     op->d = _wtof(Value);
                 }
+                else if (wcscmp(LocalName, L"r") == 0)
+                {
+                    op->r = _wtof(Value);
+                }
                 else if (wcscmp(LocalName, L"depth") == 0)
                 {
                     op->depth = _wtof(Value);
@@ -733,6 +753,10 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                 else if (wcscmp(LocalName, L"mill") == 0)
                 {
                     op->mill = _wtol(Value);
+                }
+                else if (wcscmp(LocalName, L"ext") == 0)
+                {
+                    op->ext = _wtol(Value);
                 }
                 else if (wcscmp(LocalName, L"edgeMaterial") == 0)
                 {
@@ -849,11 +873,11 @@ HRESULT WriteAttributes(IXmlReader* pReader, const WCHAR* ElementName, attribute
     return hr;
 }
 
-static void _add_face(SUEntitiesRef entities, SUPoint3D vertices[4], SUMaterialRef material)
+static void _add_face(SUEntitiesRef entities, SUPoint3D *vertices, size_t num_vertices, SUMaterialRef material)
 {
     SULoopInputRef outer_loop = SU_INVALID;
     SU_CALL(SULoopInputCreate(&outer_loop));
-    for (size_t i = 0; i < 4; ++i) {
+    for (size_t i = 0; i < num_vertices; ++i) {
         SULoopInputAddVertexIndex(outer_loop, i);
     }
     // Create the face
@@ -873,7 +897,7 @@ static void _add_face(SUEntitiesRef entities, SUPoint3D vertices[4], SUMaterialR
 
 static void _add_drill(SUEntitiesRef entities, SUPoint3D corner, OPERATION_T *op, SUVector3D normal, double depth, size_t side)
 {
-    SUPoint3D center = corner;
+    SUPoint3D center = {MM2INCH(corner.x), MM2INCH(corner.y), MM2INCH(corner.z)};
 
     double X = MM2INCH(op->x);
     double Y = MM2INCH(op->y);
@@ -944,29 +968,149 @@ static void _add_drill(SUEntitiesRef entities, SUPoint3D corner, OPERATION_T *op
     SU_CALL(SUEntitiesAddEdges(entities, 1, &edge));
 }
 
-static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
+/* (points [*num_points-1]) contains current corner point */
+static int _corner_operation(SUPoint3D points[12], size_t *num_points, size_t cn, OPERATION_T *cop)
+{
+    if (!cop)
+    {
+        return 0;
+    }
+    //return -1;
+
+    SUPoint3D original_point = points[(*num_points)-1];
+    //TODO: correct per edgeMatirial
+
+    if (cn == CORNER_LOWER_LEFT)
+    {
+        points[(*num_points)-1].x += (cop->x);
+        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+        if (cop->subtype == 3)
+        {
+            points[(*num_points)++] = points[(*num_points)-1];
+            points[(*num_points)-1].y += (cop->y);
+            wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+                    points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+        }
+
+        points[(*num_points)++] = original_point;
+        points[(*num_points)-1].y += (cop->y);
+        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+    }
+    else if (cn == CORNER_UPPER_LEFT)
+    {
+        points[(*num_points)-1].y -= (cop->y);
+        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+        if (cop->subtype == 3)
+        {
+            points[(*num_points)++] = points[(*num_points)-1];
+            points[(*num_points)-1].x += (cop->x);
+            wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+                    points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+        }
+
+        points[(*num_points)++] = original_point;
+        points[(*num_points)-1].x += cop->x;
+        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+
+        points[(*num_points)-1].x += cop->x;
+    }
+    else if (cn == CORNER_UPPER_RIGHT)
+    {
+        points[(*num_points)-1].x -= (cop->x);
+        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+        if (cop->subtype == 3)
+        {
+            points[(*num_points)++] = points[(*num_points)-1];
+            points[(*num_points)-1].y -= (cop->y);
+            wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+                    points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+        }
+
+        points[(*num_points)++] = original_point;
+        points[(*num_points)-1].y -= (cop->y);
+        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+    }
+    else if (cn == CORNER_LOWER_RIGHT)
+    {
+        points[(*num_points)-1].y += (cop->y);
+        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+        if (cop->subtype == 3)
+        {
+            points[(*num_points)++] = points[(*num_points)-1];
+            points[(*num_points)-1].x -= (cop->x);
+            wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+                    points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+        }
+
+        points[(*num_points)++] = original_point;
+        points[(*num_points)-1].x -= (cop->x);
+        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+    }
+
+    return 0;
+}
+
+static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
 {
 
     //End coordinates of detail in INCHES
-    double X = MM2INCH(d->width);
-    double Y = MM2INCH(d->height);
-    double Z = MM2INCH(d->thickness);
+    double X = (d->width);
+    double Y = (d->height);
+    double Z = (d->thickness);
 
-/*
-    SIDE_FRONT,
-    SIDE_LEFT,
-    SIDE_TOP,
-    SIDE_RIGHT,
-    SIDE_BOTTOM,
-    SIDE_BACK
-*/
+    OPERATION_T *corner[CORNER_MAX];
+    size_t num_corner_operations = 0;
+    memset(corner, 0, sizeof(corner));
+    for (size_t j = 0; j < d->operations_cnt; j++)
+    {
+        OPERATION_T *op = &d->operations[j];
+        if (op->type == TYPE_CORNEROPERATION)
+        {
+            wprintf(L"%zd: Corner operation: corner=%d, subtype=%d, x=%.1f, y=%.1f, r=%.f, mill=%d, "
+                    "ext=%d, edgeMaterial=%d, edgeCovering=%d\n",
+                    j, op->corner, op->subtype, op->x, op->y, op->r, op->mill, op->ext, op->edgeMaterial, op->edgeCovering);
+
+            if ((op->corner <= 0) || (op->corner > CORNER_MAX))
+            {
+                PARSE_FAIL(-1);
+            }
+
+            if (op->subtype != 3)
+            {
+                wprintf(L"TODO: Corner operation subtype=%d not supported.\n", op->subtype);
+                continue;
+            }
+
+            if (op->ext != 1)
+            {
+                wprintf(L"TODO: Corner operation subtype=%d ext=%d not supported.\n", op->subtype, op->ext);
+                continue;
+            }
+
+            corner[op->corner-1] = op;
+            num_corner_operations++;
+        }
+        else if (op->type != TYPE_DRILLING)
+        {
+            //wprintf(L"TODO: Operation type=%d not supported.\n", op->type);
+        }
+    }
+
 
     SUPoint3D sides[6][4] = {
         {   //SIDE_FRONT
             { 0, 0, Z },
-            { X, 0, Z },
-            { X, Y, Z },
             { 0, Y, Z },
+            { X, Y, Z },
+            { X, 0, Z },
         },
         {   //SIDE_LEFT
             { 0, 0, Z },
@@ -1019,8 +1163,87 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
             material = m->material;
         }
 
-        _add_face(entities, sides[i], material);
+        //for now it can be maximum 3*4
+        SUPoint3D points[12];
+        size_t num_points = 0;
 
+        if ((i == SIDE_FRONT) || (i == SIDE_BACK))
+        {
+            for (size_t cn = 0; cn < CORNER_MAX; cn++)
+            {
+                points[num_points++] = sides[i][cn];
+                _corner_operation(points, &num_points, cn, corner[cn]);
+            }
+
+#if 0
+            if (cop)
+            {
+                //TODO: correct per edgeMatirial
+                if (i == SIDE_FRONT)
+                {
+                    points[num_points-1].x += (cop->x);
+                    wprintf(L"Added new point %.3f %.3f for corner %d, was %.1f, %.1f\n",
+                            points[num_points-1].x, points[num_points-1].y, cn, sides[i][0].x, sides[i][0].y);
+                }
+                else
+                {
+                    points[num_points-1].y += (cop->y);
+                    wprintf(L"Added new point %.3f %.3f for corner %d\n",
+                            points[num_points-1].x, points[num_points-1].y, cn);
+                }
+            }
+#endif //0
+#if 0
+            points[num_points++] = sides[i][1];
+
+            cn = (i == SIDE_FRONT) ?  CORNER_LOWER_RIGHT : CORNER_UPPER_LEFT;
+            if (corner[cn])
+            {
+                _corner_operation(points, &num_points, cn, corner[cn]);
+            }
+
+            points[num_points++] = sides[i][2];
+
+            cn = CORNER_UPPER_RIGHT;
+            if (corner[cn])
+            {
+                _corner_operation(points, &num_points, cn, corner[cn]);
+            }
+
+            points[num_points++] = sides[i][3];
+
+            cn = (i == SIDE_FRONT) ?  CORNER_UPPER_LEFT : CORNER_LOWER_RIGHT;
+            if (corner[cn])
+            {
+                _corner_operation(points, &num_points, cn, corner[cn]);
+            }
+#endif
+        }
+        else
+        {
+            //here we need a loop if corner operation actual for this corner
+            points[num_points++] = sides[i][0];
+            points[num_points++] = sides[i][1];
+            points[num_points++] = sides[i][2];
+            points[num_points++] = sides[i][3];
+        }
+
+        if (num_points > 4)
+        {
+            wprintf(L"Adding face with num_points=%zd\n", num_points);
+        }
+
+        for (size_t j = 0 ; j < num_points; j++)
+        {
+            points[j].x =  MM2INCH(points[j].x);
+            points[j].y =  MM2INCH(points[j].y);
+            points[j].z =  MM2INCH(points[j].z);
+        }
+        _add_face(entities, points, num_points, material);
+    }
+
+    for (size_t i = 0; i < 6; ++i)
+    {
         size_t drill_cnt = 0;
         for (size_t j = 0; j < d->operations_cnt; j++)
         {
@@ -1039,6 +1262,7 @@ static void _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
             }
         }
     }
+    return 0;
 }
 
 static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail_def)
@@ -1178,7 +1402,7 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
             // Erase all faces from component
             SU_CALL(SUEntitiesErase(instance_entities, edgeCount, &elements[0]));
 
-            SU_CALL(SUEntitiesGetNumEdges(instance_entities, false, &edgeCount));
+            //SU_CALL(SUEntitiesGetNumEdges(instance_entities, false, &edgeCount));
         }
 
     }

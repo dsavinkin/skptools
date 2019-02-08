@@ -16,6 +16,9 @@
 #include <SketchUpAPI/model/texture.h>
 #include <vector>
 
+#define MM2INCH(x) ((x)/25.4)
+#define INCH2MM(x) ((x)*25.4)
+
 #define PRINT_COUNT(func, ...) do { \
     size_t count; \
     func(__VA_ARGS__, &count); \
@@ -239,9 +242,9 @@ static void _list_entities(SUEntitiesRef entities, const char *prefix)
                     SUVertexGetPosition(endVertex, &end);
                     // Now do something with the point data
 
-                    printf("face %zd: edge %zd : (%.0f-%.0f-%.0f to %.0f-%.0f-%.0f)\n", i, j,
-                           start.x, start.y, start.z,
-                           end.x, end.y, end.z);
+                    printf("face %zd: edge : (%.1f-%.1f-%.1f to %.1f-%.1f-%.1f)\n", i,
+                           INCH2MM(start.x), INCH2MM(start.y), INCH2MM(start.z),
+                           INCH2MM(end.x), INCH2MM(end.y), INCH2MM(end.z));
                 }
 
                 if (1)
@@ -268,6 +271,45 @@ static void _list_entities(SUEntitiesRef entities, const char *prefix)
                 }
             }
         }
+    }
+
+    size_t edgeCount = 0;
+    SUEntitiesGetNumEdges(entities, false, &edgeCount);
+    if (edgeCount > 0)
+    {
+        std::vector<SUEdgeRef> edges(edgeCount);
+        SUEntitiesGetEdges(entities, false, edgeCount, &edges[0], &edgeCount);
+
+        // Get the vertex positions for each edge
+        for (size_t j = 0; j < edgeCount; j++) {
+            SUEdgeRef edge = edges[j];
+            SUVertexRef startVertex = SU_INVALID;
+            SUVertexRef endVertex = SU_INVALID;
+            SUEdgeGetStartVertex(edge, &startVertex);
+            SUEdgeGetEndVertex(edge, &endVertex);
+            SUPoint3D start;
+            SUPoint3D end;
+            SUVertexGetPosition(startVertex, &start);
+            SUVertexGetPosition(endVertex, &end);
+            // Now do something with the point data
+
+            printf("signle edge : (%.1f-%.1f-%.1f to %.1f-%.1f-%.1f)\n",
+                   INCH2MM(start.x), INCH2MM(start.y), INCH2MM(start.z),
+                   INCH2MM(end.x), INCH2MM(end.y), INCH2MM(end.z));
+        }
+
+#if 0
+        std::vector<SUEntityRef> elements(edgeCount);
+        for (size_t i = 0; i < edgeCount; i++)
+        {
+            elements[i] = SUEdgeToEntity(edges[i]);
+        }
+
+        // Erase all faces from component
+        //SU_CALL(SUEntitiesErase(instance_entities, edgeCount, &elements[0]));
+
+        //SU_CALL(SUEntitiesGetNumEdges(instance_entities, false, &edgeCount));
+#endif
     }
 }
 
