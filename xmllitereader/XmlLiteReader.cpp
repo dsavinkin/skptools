@@ -84,6 +84,9 @@
 #define CORNER_LOWER_RIGHT  3
 #define CORNER_MAX          4
 
+#define EDGE_COVER_BOTH     0
+#define EDGE_COVER_H        1
+#define EDGE_COVER_V        2
 
 #define DEFAULT_COLOR_ALPHA_BAND 128
 #define DEFAULT_COLOR_ALPHA_SHEET 128
@@ -119,12 +122,6 @@ typedef enum {
     TYPE_GROOVING,
     TYPE_CORNEROPERATION,
 } OPERATION_TYPE_T;
-
-typedef enum {
-    EDGE_COVER_BOTH=0,
-    EDGE_COVER_H,
-    EDGE_COVER_V
-} EDGE_COVER_T;
 
 typedef struct {
     OPERATION_TYPE_T type;
@@ -969,90 +966,132 @@ static void _add_drill(SUEntitiesRef entities, SUPoint3D corner, OPERATION_T *op
 }
 
 /* (points [*num_points-1]) contains current corner point */
-static int _corner_operation(SUPoint3D points[12], int *materials, size_t *num_points, size_t cn, OPERATION_T *cop)
+static int _corner_operation(SUPoint3D points[12], int *band_materials, size_t *num_points, size_t cn, OPERATION_T *cop)
 {
     if (!cop)
     {
         return 0;
     }
-    //return -1;
 
     SUPoint3D original_point = points[(*num_points)-1];
-    //TODO: correct per edgeMatirial
+
+    double X = cop->x;
+    double Y = cop->y;
+    int material_H = 1; //same as for sheet
+    int material_V = 1;
+
+    if (cop->edgeMaterial > 0)
+    {
+        MATERIAL_DEF_T *m = &model_materials[cop->edgeMaterial-1];
+
+        if (cop->edgeCovering == EDGE_COVER_BOTH)
+        {
+            X += m->thickness;
+            Y += m->thickness;
+            material_H = cop->edgeMaterial;
+            material_V = cop->edgeMaterial;
+            //printf("Set both material_H, material_V=%d\n", material_H);
+        }
+        else if (cop->edgeCovering == EDGE_COVER_H)
+        {
+            material_H = cop->edgeMaterial;
+            Y += m->thickness;
+            //printf("Set material_H=%d\n", material_H);
+        }
+        else if (cop->edgeCovering == EDGE_COVER_V)
+        {
+            material_V = cop->edgeMaterial;
+            X += m->thickness;
+            //printf("Set material_V=%d\n", material_V);
+        }
+    }
+
 
     if (cn == CORNER_LOWER_LEFT)
     {
-        points[(*num_points)-1].x += (cop->x);
-        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
-                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+        points[(*num_points)-1].x += (X);
+        band_materials[(*num_points)-1] = material_H;
+//        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+//                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
         if (cop->subtype == 3)
         {
             points[(*num_points)++] = points[(*num_points)-1];
-            points[(*num_points)-1].y += (cop->y);
-            wprintf(L"Added new point %.3f %.3f for corner %zd\n",
-                    points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+            points[(*num_points)-1].y += (Y);
+            band_materials[(*num_points)-1] = material_V;
+//        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+//                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
         }
 
         points[(*num_points)++] = original_point;
-        points[(*num_points)-1].y += (cop->y);
-        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
-                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+        points[(*num_points)-1].y += (Y);
+        band_materials[(*num_points)-1] = material_V;
+//        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+//                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
     }
     else if (cn == CORNER_UPPER_LEFT)
     {
-        points[(*num_points)-1].y -= (cop->y);
-        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
-                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+        points[(*num_points)-1].y -= (Y);
+        band_materials[(*num_points)-1] = material_V;
+//        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+//                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
         if (cop->subtype == 3)
         {
             points[(*num_points)++] = points[(*num_points)-1];
-            points[(*num_points)-1].x += (cop->x);
-            wprintf(L"Added new point %.3f %.3f for corner %zd\n",
-                    points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+            points[(*num_points)-1].x += (X);
+            band_materials[(*num_points)-1] = material_H;
+//        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+//                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
         }
 
         points[(*num_points)++] = original_point;
-        points[(*num_points)-1].x += cop->x;
-        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
-                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+        points[(*num_points)-1].x += X;
+        band_materials[(*num_points)-1] = material_H;
+//        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+//                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
 
-        points[(*num_points)-1].x += cop->x;
+        points[(*num_points)-1].x += X;
     }
     else if (cn == CORNER_UPPER_RIGHT)
     {
-        points[(*num_points)-1].x -= (cop->x);
-        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
-                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+        points[(*num_points)-1].x -= (X);
+        band_materials[(*num_points)-1] = material_H;
+//        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+//                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
         if (cop->subtype == 3)
         {
             points[(*num_points)++] = points[(*num_points)-1];
-            points[(*num_points)-1].y -= (cop->y);
-            wprintf(L"Added new point %.3f %.3f for corner %zd\n",
-                    points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+            points[(*num_points)-1].y -= (Y);
+            band_materials[(*num_points)-1] = material_V;
+//        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+//                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
         }
 
         points[(*num_points)++] = original_point;
-        points[(*num_points)-1].y -= (cop->y);
-        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
-                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+        points[(*num_points)-1].y -= (Y);
+        band_materials[(*num_points)-1] = material_V;
+//        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+//                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
     }
     else if (cn == CORNER_LOWER_RIGHT)
     {
-        points[(*num_points)-1].y += (cop->y);
-        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
-                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+        points[(*num_points)-1].y += (Y);
+        band_materials[(*num_points)-1] = material_V;
+//        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+//                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
         if (cop->subtype == 3)
         {
             points[(*num_points)++] = points[(*num_points)-1];
-            points[(*num_points)-1].x -= (cop->x);
-            wprintf(L"Added new point %.3f %.3f for corner %zd\n",
-                    points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+            points[(*num_points)-1].x -= (X);
+            band_materials[(*num_points)-1] = material_H;
+//        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+//                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
         }
 
         points[(*num_points)++] = original_point;
-        points[(*num_points)-1].x -= (cop->x);
-        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
-                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
+        points[(*num_points)-1].x -= (X);
+        band_materials[(*num_points)-1] = material_H;
+//        wprintf(L"Added new point %.3f %.3f for corner %zd\n",
+//                points[(*num_points)-1].x, points[(*num_points)-1].y, cn);
     }
 
     return 0;
@@ -1153,68 +1192,53 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
         { 0,  0,  1},  //SIDE_BACK
     };
 
-    SUPoint3D sheet_points[12]; // in inches
+    //for now it can be maximum 3*4
+    SUPoint3D sheet_points[12];
     size_t num_sheet_points = 0;
 
     int band_materials[12]; //material index corresponds to the starting point of sheet_points
     memset(band_materials, 0, sizeof(band_materials));
 
-    for (size_t i = 0; i < 6; ++i)
+    SUMaterialRef material = SU_INVALID;
+    if (d->m_bands[SIDE_FRONT])
     {
-        SUMaterialRef material = SU_INVALID;
-        if (d->m_bands[i])
-        {
-            int m_id = d->m_bands[i];
-            MATERIAL_DEF_T *m = &model_materials[m_id-1];
-            material = m->material;
-        }
-
-        //for now it can be maximum 3*4
-        SUPoint3D points[12]; //in mm, then converted to inches
-        size_t num_points = 0;
-
-        if ((i == SIDE_FRONT) || (i == SIDE_BACK))
-        {
-            for (size_t cn = 0; cn < CORNER_MAX; cn++)
-            {
-                points[num_points++] = sides[i][cn];
-                _corner_operation(points, band_materials, &num_points, cn, corner[cn]);
-                band_materials[num_points-1] = d->m_bands[cn+1];
-            }
-
-            for (size_t j = 0 ; j < num_points; j++)
-            {
-                points[j].x =  MM2INCH(points[j].x);
-                points[j].y =  MM2INCH(points[j].y);
-                points[j].z =  MM2INCH(points[j].z);
-            }
-
-            if (num_sheet_points == 0)
-            {
-                memcpy(sheet_points, points, sizeof(sheet_points));
-                num_sheet_points  = num_points;
-            }
-
-            _add_face(entities, points, num_points, material);
-        }
+        int m_id = d->m_bands[SIDE_FRONT];
+        MATERIAL_DEF_T *m = &model_materials[m_id-1];
+        material = m->material;
     }
 
-    for (size_t j = 1 ; j < num_sheet_points ; j++)
+    for (size_t cn = 0; cn < CORNER_MAX; cn++)
     {
+        sheet_points[num_sheet_points++] = sides[SIDE_FRONT][cn];
+        _corner_operation(sheet_points, band_materials, &num_sheet_points, cn, corner[cn]);
+        band_materials[num_sheet_points-1] = d->m_bands[cn+1];
+    }
 
+    for (size_t j = 0 ; j < num_sheet_points; j++)
+    {
+        sheet_points[j].x =  MM2INCH(sheet_points[j].x);
+        sheet_points[j].y =  MM2INCH(sheet_points[j].y);
+        sheet_points[j].z =  MM2INCH(sheet_points[j].z);
+    }
+
+    num_sheet_points  = num_sheet_points;
+    _add_face(entities, sheet_points, num_sheet_points, material);
+
+    for (size_t j = 0 ; j < num_sheet_points ; j++)
+    {
         SUMaterialRef material = SU_INVALID;
 
-        if (band_materials[j-1])
+        if (band_materials[j])
         {
-            int m_id = band_materials[j-1];
+            int m_id = band_materials[j];
             MATERIAL_DEF_T *m = &model_materials[m_id-1];
             material = m->material;
         }
 
         SUPoint3D points[4];
 
-        points[0] = sheet_points[j-1];
-        points[1] = sheet_points[j];
+        points[0] = sheet_points[j];
+        points[1] = sheet_points[(j+1) % num_sheet_points];
         points[2] = points[1];
         points[2].z = 0;
         points[3] = points[0];
@@ -1224,6 +1248,19 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
         _add_face(entities, points, 4, material);
     }
 
+    if (d->m_bands[SIDE_BACK])
+    {
+        int m_id = d->m_bands[SIDE_BACK];
+        MATERIAL_DEF_T *m = &model_materials[m_id-1];
+        material = m->material;
+    }
+
+    for (size_t j = 0 ; j < num_sheet_points; j++)
+    {
+        sheet_points[j].z = 0;
+    }
+
+    _add_face(entities, sheet_points, num_sheet_points, material);
 
     for (size_t i = 0; i < 6; ++i)
     {
