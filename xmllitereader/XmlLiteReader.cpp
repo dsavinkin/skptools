@@ -201,7 +201,7 @@ static int _details_cnt = 0;
 static DETAIL_DEF_T details[100];
 
 static int _materials_cnt = 0;
-static MATERIAL_DEF_T materials[10];
+static MATERIAL_DEF_T model_materials[10];
 
 /***************************************************************/
 /*                     Local Functions                         */
@@ -256,7 +256,7 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                 }
                 _state = STATE_MATERIALS;
                 _materials_cnt = 0;
-                memset(materials, 0, sizeof(materials));
+                memset(model_materials, 0, sizeof(model_materials));
             }
             else if (wcscmp(ElementName, L"details") == 0)
             {
@@ -421,7 +421,7 @@ static HRESULT _parse_material(const WCHAR* ElementName,
     }
 
     //wprintf(L"material (%d) %s=\"%s\"\n", _materials_cnt, LocalName, Value);
-    MATERIAL_DEF_T *m = &materials[_materials_cnt-1];
+    MATERIAL_DEF_T *m = &model_materials[_materials_cnt-1];
 
     if (wcscmp(LocalName, L"id") == 0)
     {
@@ -515,7 +515,7 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                         PARSE_FAIL(E_ABORT);
                     }
                     // TODO: update thickness after reading multiplier
-                    MATERIAL_DEF_T *m = &materials[d->material_id-1];
+                    MATERIAL_DEF_T *m = &model_materials[d->material_id-1];
                     d->thickness = m->thickness;
                 }
                 else if (wcscmp(LocalName, L"amount") == 0)
@@ -611,7 +611,7 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                     }
                     else if (material_id > 0)
                     {
-                        MATERIAL_DEF_T *m = &materials[material_id-1];
+                        MATERIAL_DEF_T *m = &model_materials[material_id-1];
 
                         if (wcscmp(ElementName, L"top") == 0)
                         {
@@ -969,7 +969,7 @@ static void _add_drill(SUEntitiesRef entities, SUPoint3D corner, OPERATION_T *op
 }
 
 /* (points [*num_points-1]) contains current corner point */
-static int _corner_operation(SUPoint3D points[12], size_t *num_points, size_t cn, OPERATION_T *cop)
+static int _corner_operation(SUPoint3D points[12], int *materials, size_t *num_points, size_t cn, OPERATION_T *cop)
 {
     if (!cop)
     {
@@ -1156,13 +1156,16 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
     SUPoint3D sheet_points[12]; // in inches
     size_t num_sheet_points = 0;
 
+    int band_materials[12]; //material index corresponds to the starting point of sheet_points
+    memset(band_materials, 0, sizeof(band_materials));
+
     for (size_t i = 0; i < 6; ++i)
     {
         SUMaterialRef material = SU_INVALID;
         if (d->m_bands[i])
         {
             int m_id = d->m_bands[i];
-            MATERIAL_DEF_T *m = &materials[m_id-1];
+            MATERIAL_DEF_T *m = &model_materials[m_id-1];
             material = m->material;
         }
 
@@ -1175,7 +1178,8 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
             for (size_t cn = 0; cn < CORNER_MAX; cn++)
             {
                 points[num_points++] = sides[i][cn];
-                _corner_operation(points, &num_points, cn, corner[cn]);
+                _corner_operation(points, band_materials, &num_points, cn, corner[cn]);
+                band_materials[num_points-1] = d->m_bands[cn+1];
             }
 
             for (size_t j = 0 ; j < num_points; j++)
@@ -1185,27 +1189,41 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                 points[j].z =  MM2INCH(points[j].z);
             }
 
-            memcpy(sheet_points, points, sizeof(sheet_points));
-            num_sheet_points  = num_points;
+            if (num_sheet_points == 0)
+            {
+                memcpy(sheet_points, points, sizeof(sheet_points));
+                num_sheet_points  = num_points;
+            }
 
             _add_face(entities, points, num_points, material);
         }
-        else
-        {
-            for (size_t j = 1 ; j < num_sheet_points ; j++)
-            {
-                points[0] = sheet_points[j-1];
-                points[1] = sheet_points[j];
-                points[2] = points[1];
-                points[2].z = 0;
-                points[3] = points[0];
-                points[3].z = 0;
-
-                _add_face(entities, points, 4, material);
-            }
-
-        }
     }
+
+    for (size_t j = 1 ; j < num_sheet_points ; j++)
+    {
+
+        SUMaterialRef material = SU_INVALID;
+
+        if (band_materials[j-1])
+        {
+            int m_id = band_materials[j-1];
+            MATERIAL_DEF_T *m = &model_materials[m_id-1];
+            material = m->material;
+        }
+
+        SUPoint3D points[4];
+
+        points[0] = sheet_points[j-1];
+        points[1] = sheet_points[j];
+        points[2] = points[1];
+        points[2].z = 0;
+        points[3] = points[0];
+        points[3].z = 0;
+
+        //add material
+        _add_face(entities, points, 4, material);
+    }
+
 
     for (size_t i = 0; i < 6; ++i)
     {
@@ -1526,7 +1544,7 @@ int write_new_model(const WCHAR *model_filename)
     //Add materials to the model and save them as materials[].material
     for (size_t i = 0; i < _materials_cnt; i++)
     {
-        MATERIAL_DEF_T *m = &materials[i];
+        MATERIAL_DEF_T *m = &model_materials[i];
         printf("material %zd: type=%d, thickness=%.1f\n", i+1,
                m->type, m->thickness);
 
