@@ -986,8 +986,8 @@ static int _corner_operation(SUPoint3D points[12], int *band_materials, size_t *
 
         if (cop->edgeCovering == EDGE_COVER_BOTH)
         {
-            X += m->thickness;
-            Y += m->thickness;
+            X -= m->thickness;
+            Y -= m->thickness;
             material_H = cop->edgeMaterial;
             material_V = cop->edgeMaterial;
             //printf("Set both material_H, material_V=%d\n", material_H);
@@ -995,13 +995,13 @@ static int _corner_operation(SUPoint3D points[12], int *band_materials, size_t *
         else if (cop->edgeCovering == EDGE_COVER_H)
         {
             material_H = cop->edgeMaterial;
-            Y += m->thickness;
+            Y -= m->thickness;
             //printf("Set material_H=%d\n", material_H);
         }
         else if (cop->edgeCovering == EDGE_COVER_V)
         {
             material_V = cop->edgeMaterial;
-            X += m->thickness;
+            X -= m->thickness;
             //printf("Set material_V=%d\n", material_V);
         }
     }
