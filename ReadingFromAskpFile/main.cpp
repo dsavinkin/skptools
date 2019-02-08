@@ -410,6 +410,10 @@ int main(int argc, char **argv)
                 PRINT_COUNT(SUComponentDefinitionGetNumUsedInstances, component);
                 PRINT_COUNT(SUComponentDefinitionGetNumInstances, component);
                 PRINT_COUNT(SUComponentDefinitionGetNumOpenings, component);
+
+                SUEntitiesRef entities;
+                SUComponentDefinitionGetEntities(component, &entities);
+                _list_entities(entities, "component");
             }
             else
             {
