@@ -1153,6 +1153,9 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
         { 0,  0,  1},  //SIDE_BACK
     };
 
+    SUPoint3D sheet_points[12]; // in inches
+    size_t num_sheet_points = 0;
+
     for (size_t i = 0; i < 6; ++i)
     {
         SUMaterialRef material = SU_INVALID;
@@ -1164,7 +1167,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
         }
 
         //for now it can be maximum 3*4
-        SUPoint3D points[12];
+        SUPoint3D points[12]; //in mm, then converted to inches
         size_t num_points = 0;
 
         if ((i == SIDE_FRONT) || (i == SIDE_BACK))
@@ -1175,71 +1178,33 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                 _corner_operation(points, &num_points, cn, corner[cn]);
             }
 
-#if 0
-            if (cop)
+            for (size_t j = 0 ; j < num_points; j++)
             {
-                //TODO: correct per edgeMatirial
-                if (i == SIDE_FRONT)
-                {
-                    points[num_points-1].x += (cop->x);
-                    wprintf(L"Added new point %.3f %.3f for corner %d, was %.1f, %.1f\n",
-                            points[num_points-1].x, points[num_points-1].y, cn, sides[i][0].x, sides[i][0].y);
-                }
-                else
-                {
-                    points[num_points-1].y += (cop->y);
-                    wprintf(L"Added new point %.3f %.3f for corner %d\n",
-                            points[num_points-1].x, points[num_points-1].y, cn);
-                }
-            }
-#endif //0
-#if 0
-            points[num_points++] = sides[i][1];
-
-            cn = (i == SIDE_FRONT) ?  CORNER_LOWER_RIGHT : CORNER_UPPER_LEFT;
-            if (corner[cn])
-            {
-                _corner_operation(points, &num_points, cn, corner[cn]);
+                points[j].x =  MM2INCH(points[j].x);
+                points[j].y =  MM2INCH(points[j].y);
+                points[j].z =  MM2INCH(points[j].z);
             }
 
-            points[num_points++] = sides[i][2];
+            memcpy(sheet_points, points, sizeof(sheet_points));
+            num_sheet_points  = num_points;
 
-            cn = CORNER_UPPER_RIGHT;
-            if (corner[cn])
-            {
-                _corner_operation(points, &num_points, cn, corner[cn]);
-            }
-
-            points[num_points++] = sides[i][3];
-
-            cn = (i == SIDE_FRONT) ?  CORNER_UPPER_LEFT : CORNER_LOWER_RIGHT;
-            if (corner[cn])
-            {
-                _corner_operation(points, &num_points, cn, corner[cn]);
-            }
-#endif
+            _add_face(entities, points, num_points, material);
         }
         else
         {
-            //here we need a loop if corner operation actual for this corner
-            points[num_points++] = sides[i][0];
-            points[num_points++] = sides[i][1];
-            points[num_points++] = sides[i][2];
-            points[num_points++] = sides[i][3];
-        }
+            for (size_t j = 1 ; j < num_sheet_points ; j++)
+            {
+                points[0] = sheet_points[j-1];
+                points[1] = sheet_points[j];
+                points[2] = points[1];
+                points[2].z = 0;
+                points[3] = points[0];
+                points[3].z = 0;
 
-        if (num_points > 4)
-        {
-            wprintf(L"Adding face with num_points=%zd\n", num_points);
-        }
+                _add_face(entities, points, 4, material);
+            }
 
-        for (size_t j = 0 ; j < num_points; j++)
-        {
-            points[j].x =  MM2INCH(points[j].x);
-            points[j].y =  MM2INCH(points[j].y);
-            points[j].z =  MM2INCH(points[j].z);
         }
-        _add_face(entities, points, num_points, material);
     }
 
     for (size_t i = 0; i < 6; ++i)
