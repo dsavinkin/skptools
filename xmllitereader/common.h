@@ -1,6 +1,5 @@
 #pragma once
 
-#include <SketchUpAPI/color.h>
 #include <SketchUpAPI/model/material.h>
 
 /***************************************************************/
@@ -14,7 +13,6 @@
 #ifndef MIN
 #define MIN(x,y) ((x) < (y) ? (x) : (y))
 #endif
-
 
 #define MM2INCH(x) ((x)/25.4)
 #define INCH2MM(x) ((x)*25.4)
@@ -43,6 +41,10 @@
 #define EDGE_COVER_BOTH     0
 #define EDGE_COVER_H        1
 #define EDGE_COVER_V        2
+
+
+#define DEFAULT_COLOR_ALPHA_BAND 192
+#define DEFAULT_COLOR_ALPHA_SHEET 128
 
 /***************************************************************/
 /*                       Global Types                          */
@@ -103,6 +105,6 @@ typedef enum {
 typedef struct {
     MATERIAL_TYPE_T type;
     double thickness;
-    SUColor color;
+    //void *material;
     SUMaterialRef material;
 } MATERIAL_DEF_T;
