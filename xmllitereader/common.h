@@ -1,6 +1,5 @@
 #pragma once
 
-#include <SketchUpAPI/color.h>
 #include <SketchUpAPI/model/material.h>
 
 /***************************************************************/
@@ -15,13 +14,14 @@
 #define MIN(x,y) ((x) < (y) ? (x) : (y))
 #endif
 
-
 #define MM2INCH(x) ((x)/25.4)
 #define INCH2MM(x) ((x)*25.4)
 
 #ifndef SU_CALL
 #define SU_CALL(func) if ((func) != SU_ERROR_NONE) { printf("Error on Line %d\n", __LINE__); throw std::exception(); }
 #endif
+
+#define PARSE_FAIL(ret)                do { printf("PARSE_FAIL line %d\n", __LINE__); return (ret); } while(0)
 
 #define DISTANCE_X 50 //mm
 #define DISTANCE_Y 50 //mm
@@ -103,6 +103,6 @@ typedef enum {
 typedef struct {
     MATERIAL_TYPE_T type;
     double thickness;
-    SUColor color;
+    //void *material;
     SUMaterialRef material;
 } MATERIAL_DEF_T;
