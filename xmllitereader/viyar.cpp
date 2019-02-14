@@ -49,6 +49,8 @@ static VIYAR_STATE_T _state = STATE_ROOT;
 static MODEL_STATE_T _model_state = MODEL_NONE;
 static DETAIL_STATE_T _detail_state = DETAIL_ATTR;
 
+VIYAR_PROJECT_T *p = NULL;
+
 static HRESULT _model_open_create()
 {
     //wprintf(L"TODO: create/read Model\n");
@@ -105,7 +107,20 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
         case STATE_MATERIALS:
             if (wcscmp(ElementName, L"material") == 0)
             {
+#if 0
+                p->materials_cnt++;
+                p->materials = (MATERIAL_DEF_T*)realloc(p->materials, sizeof(MATERIAL_DEF_T)*p->materials_cnt);
+                if (p->materials == NULL)
+                {
+                    PARSE_FAIL(E_ABORT);
+                }
+
+                MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];
+                memset(m, 0, sizeof(*m));
+#else
                 _materials_cnt++;
+#endif
+
                 //wprintf(L"TODO: (%d) start adding material\n", _materials_cnt);
             }
             else
@@ -117,10 +132,24 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
         case STATE_DETAILS:
             if (wcscmp(ElementName, L"detail") == 0)
             {
+
+#if 0
+                p->details_cnt++;
+                p->details = (DETAIL_DEF_T*)realloc(p->details, sizeof(DETAIL_DEF_T)*p->details_cnt);
+                if (p->details == NULL)
+                {
+                    PARSE_FAIL(E_ABORT);
+                }
+
+                DETAIL_DEF_T *d = &p->details[p->details_cnt-1];
+#else
                 _details_cnt++;
+                DETAIL_DEF_T *d = &details[_details_cnt-1];
+#endif
+                memset(d, 0, sizeof(*d));
+
                 _detail_state = DETAIL_ATTR;
 
-                DETAIL_DEF_T *d = &details[_details_cnt-1];
                 for (size_t i = 0 ; i < 6; i++)
                 {
                     //Set default material for all bands = material 1
@@ -703,17 +732,19 @@ HRESULT WriteAttributes(IXmlReader* pReader, const WCHAR* ElementName, attribute
     return hr;
 }
 
-int parse_xml(const WCHAR* xmlfilename)
+int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
 {
     HRESULT hr = S_OK;
     IStream *pFileStream = NULL;
     IXmlReader *pReader = NULL;
     IXmlReaderInput *xmlReaderInput = NULL;
     XmlNodeType nodeType;
-    const WCHAR* pwszPrefix;
-    const WCHAR* pwszLocalName;
-    const WCHAR* pwszValue;
+    const wchar_t* pwszPrefix;
+    const wchar_t* pwszLocalName;
+    const wchar_t* pwszValue;
     UINT cwchPrefix;
+
+    p = project;
 
     //Open read-only input stream
     if (FAILED(hr = SHCreateStreamOnFile(xmlfilename, STGM_READ, &pFileStream)))
@@ -876,4 +907,18 @@ CleanUp:
     SAFE_RELEASE(pReader);
     return hr;
 
+}
+
+VIYAR_PROJECT_T project_init()
+{
+    VIYAR_PROJECT_T project;
+    memset(&project, 0, sizeof(project));
+    return project;
+}
+
+void project_destroy(VIYAR_PROJECT_T *project)
+{
+    free(project->materials);
+    free(project->details);
+    memset(project, 0, sizeof(*project));
 }

@@ -60,6 +60,8 @@
 /*                     Local Variables                         */
 /***************************************************************/
 
+static VIYAR_PROJECT_T project = project_init();
+
 static double _last_detail_position_X = 0;
 static double _last_detail_position_Y = 0;
 static double _max_detail_position_X = 0;
@@ -886,12 +888,17 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
         return 0;
     }
 
-    HRESULT hr = parse_xml(argv[1]);
+    HRESULT hr = parse_xml(argv[1], &project);
 
     if (FAILED(hr))
     {
+        project_destroy(&project);
         return hr;
     }
 
-    return write_new_model(argv[2]);
+    int res = write_new_model(argv[2]);
+
+    project_destroy(&project);
+
+    return res;
 }
