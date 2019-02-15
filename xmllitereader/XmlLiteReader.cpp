@@ -68,11 +68,11 @@ static double _max_detail_position_X = 0;
 static double _max_detail_position_Y = 0;
 static int _detail_position_direction = 0;
 
-int _details_cnt = 0;
-DETAIL_DEF_T details[100];
+static int _details_cnt = 0;
+static DETAIL_DEF_T details[100];
 
-int _materials_cnt = 0;
-MATERIAL_DEF_T model_materials[10];
+static int _materials_cnt = 0;
+static MATERIAL_DEF_T model_materials[10];
 
 /***************************************************************/
 /*                     Local Functions                         */
@@ -859,7 +859,7 @@ int write_new_model(const WCHAR *model_filename)
 
     for (size_t i = 0; i < _details_cnt; i++)
     {
-#if 0
+#if 1
         printf("Detail %zd:\n", i);
         _dump_detail(&details[i]);
 #endif
@@ -895,6 +895,14 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
         project_destroy(&project);
         return hr;
     }
+
+    _details_cnt = project.details_cnt;
+    memcpy(details, project.details, project.details_cnt * sizeof(DETAIL_DEF_T));
+
+    _materials_cnt = project.materials_cnt;
+    memcpy(model_materials, project.materials, project.materials_cnt * sizeof(MATERIAL_DEF_T));
+
+    wprintf(L"_materials_cnt=%d, _details_cnt=%d\n", _materials_cnt, _details_cnt);
 
     int res = write_new_model(argv[2]);
 

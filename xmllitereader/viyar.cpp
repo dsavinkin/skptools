@@ -85,8 +85,10 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                     PARSE_FAIL(E_ABORT);
                 }
                 _state = STATE_MATERIALS;
-                _materials_cnt = 0;
-                memset(model_materials, 0, sizeof(model_materials));
+                if (p->materials_cnt != 0)
+                {
+                    PARSE_FAIL(E_ABORT);
+                }
             }
             else if (wcscmp(ElementName, L"details") == 0)
             {
@@ -95,8 +97,10 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                     PARSE_FAIL(E_ABORT);
                 }
                 _state = STATE_DETAILS;
-                _details_cnt = 0;
-                memset(details, 0, sizeof(details));
+                if (p->details_cnt != 0)
+                {
+                    PARSE_FAIL(E_ABORT);
+                }
             }
             else
             {
@@ -107,7 +111,6 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
         case STATE_MATERIALS:
             if (wcscmp(ElementName, L"material") == 0)
             {
-#if 0
                 p->materials_cnt++;
                 p->materials = (MATERIAL_DEF_T*)realloc(p->materials, sizeof(MATERIAL_DEF_T)*p->materials_cnt);
                 if (p->materials == NULL)
@@ -116,10 +119,7 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                 }
 
                 MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];
-                memset(m, 0, sizeof(*m));
-#else
-                _materials_cnt++;
-#endif
+                memset(m, 0, sizeof(MATERIAL_DEF_T));
 
                 //wprintf(L"TODO: (%d) start adding material\n", _materials_cnt);
             }
@@ -133,7 +133,6 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
             if (wcscmp(ElementName, L"detail") == 0)
             {
 
-#if 0
                 p->details_cnt++;
                 p->details = (DETAIL_DEF_T*)realloc(p->details, sizeof(DETAIL_DEF_T)*p->details_cnt);
                 if (p->details == NULL)
@@ -142,11 +141,7 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                 }
 
                 DETAIL_DEF_T *d = &p->details[p->details_cnt-1];
-#else
-                _details_cnt++;
-                DETAIL_DEF_T *d = &details[_details_cnt-1];
-#endif
-                memset(d, 0, sizeof(*d));
+                memset(d, 0, sizeof(DETAIL_DEF_T));
 
                 _detail_state = DETAIL_ATTR;
 
@@ -186,7 +181,7 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                         PARSE_FAIL(E_ABORT);
                     }
 
-                    DETAIL_DEF_T *d = &details[_details_cnt-1];
+                    DETAIL_DEF_T *d = &p->details[p->details_cnt-1];
 
                     d->operations_cnt++;
                     d->operations = (OPERATION_T*)realloc(d->operations, sizeof(OPERATION_T)*d->operations_cnt);
@@ -267,7 +262,7 @@ static HRESULT _parse_material(const WCHAR* ElementName,
                                const WCHAR* Value,
                                void *data)
 {
-    if (_materials_cnt < 1)
+    if (p->materials_cnt < 1)
     {
         PARSE_FAIL(E_ABORT);
     }
@@ -277,12 +272,11 @@ static HRESULT _parse_material(const WCHAR* ElementName,
         return S_FALSE;
     }
 
-    //wprintf(L"material (%d) %s=\"%s\"\n", _materials_cnt, LocalName, Value);
-    MATERIAL_DEF_T *m = &model_materials[_materials_cnt-1];
+    MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];
 
     if (wcscmp(LocalName, L"id") == 0)
     {
-        if (_wtol(Value) != _materials_cnt)
+        if (_wtol(Value) != p->materials_cnt)
         {
             PARSE_FAIL(E_ABORT);
         }
@@ -345,12 +339,12 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
         return S_FALSE;
     }
 
-    if (_details_cnt < 1)
+    if (p->details_cnt < 1)
     {
         PARSE_FAIL(E_ABORT);
     }
 
-    DETAIL_DEF_T *d = &details[_details_cnt-1];
+    DETAIL_DEF_T *d = &p->details[p->details_cnt-1];
 
     //wprintf(L"detail %d:%d <%s: %s=\"%s\"> (%p)\n", _details_cnt, _detail_state, ElementName, LocalName, Value, data);
 
@@ -361,7 +355,7 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
             {
                 if (wcscmp(LocalName, L"id") == 0)
                 {
-                    if (_wtol(Value) != _details_cnt)
+                    if (_wtol(Value) != p->details_cnt)
                     {
                         PARSE_FAIL(E_ABORT);
                     }
@@ -369,12 +363,12 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                 else if (wcscmp(LocalName, L"material") == 0)
                 {
                     d->material_id = _wtol(Value);
-                    if ((d->material_id <= 0) || (d->material_id > _materials_cnt))
+                    if ((d->material_id <= 0) || (d->material_id > p->materials_cnt))
                     {
                         PARSE_FAIL(E_ABORT);
                     }
                     // TODO: update thickness after reading multiplier
-                    MATERIAL_DEF_T *m = &model_materials[d->material_id-1];
+                    MATERIAL_DEF_T *m = &p->materials[d->material_id-1];
                     d->thickness = m->thickness;
                 }
                 else if (wcscmp(LocalName, L"amount") == 0)
@@ -430,7 +424,7 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
             }
             else
             {
-                wprintf(L"Ignore detail element %s (%d) %s=\"%s\"\n", ElementName, _details_cnt, LocalName, Value);
+                wprintf(L"Ignore detail element %s (%d) %s=\"%s\"\n", ElementName, p->details_cnt, LocalName, Value);
                 return S_FALSE;
             }
             break;
@@ -470,7 +464,7 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                     }
                     else if (material_id > 0)
                     {
-                        MATERIAL_DEF_T *m = &model_materials[material_id-1];
+                        MATERIAL_DEF_T *m = &p->materials[material_id-1];
 
                         if (wcscmp(ElementName, L"top") == 0)
                         {
@@ -501,7 +495,7 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
             }
             else
             {
-                wprintf(L"Ignore detail element %s (%d) %s=\"%s\"\n", ElementName, _details_cnt, LocalName, Value);
+                wprintf(L"Ignore detail element %s (%d) %s=\"%s\"\n", ElementName, p->details_cnt, LocalName, Value);
                 return S_FALSE;
             }
             break;
@@ -552,7 +546,7 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                     }
                     else
                     {
-                        wprintf(L"Ignore operation (%d) %s=\"%s\"\n", _details_cnt, LocalName, Value);
+                        wprintf(L"Ignore operation (%d) %s=\"%s\"\n", p->details_cnt, LocalName, Value);
                         return S_FALSE;
                     }
                 }
@@ -627,13 +621,13 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
                 }
                 else
                 {
-                    wprintf(L"Ignore attribute %s (%d) %s=\"%s\"\n", ElementName, _details_cnt, LocalName, Value);
+                    wprintf(L"Ignore attribute %s (%d) %s=\"%s\"\n", ElementName, p->details_cnt, LocalName, Value);
                     return S_FALSE;
                 }
             }
             else
             {
-                wprintf(L"Ignore detail element %s (%d) %s=\"%s\"\n", ElementName, _details_cnt, LocalName, Value);
+                wprintf(L"Ignore detail element %s (%d) %s=\"%s\"\n", ElementName, p->details_cnt, LocalName, Value);
                 return S_FALSE;
             }
             break;
@@ -892,7 +886,7 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
     }
 
 #if 0
-    for (size_t i = 0; i < _details_cnt; i++)
+    for (size_t i = 0; i < p->details_cnt; i++)
     {
         printf("Detail %zd:\n", i);
         _dump_detail(&details[i]);

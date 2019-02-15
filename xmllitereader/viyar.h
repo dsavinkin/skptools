@@ -68,12 +68,6 @@ typedef struct {
     int details_cnt;
 } VIYAR_PROJECT_T;
 
-extern int _details_cnt;
-extern DETAIL_DEF_T details[100];
-
-extern int _materials_cnt;
-extern MATERIAL_DEF_T model_materials[10];
-
 /***************************************************************/
 /*                  Function definitions                       */
 /***************************************************************/
