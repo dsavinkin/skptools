@@ -52,12 +52,19 @@
 /*                       Local Types                           */
 /***************************************************************/
 
+typedef struct {
+    MATERIAL_DEF_T *material;
+    SUMaterialRef sumref;
+} SUMATERIAL_T;
 
 /***************************************************************/
 /*                     Local Variables                         */
 /***************************************************************/
 
 static VIYAR_PROJECT_T project = project_init();
+
+static SUMATERIAL_T *SUmaterials = NULL;
+static int SUmaterials_cnt = 0;
 
 static double _last_detail_position_X = 0;
 static double _last_detail_position_Y = 0;
@@ -887,11 +894,26 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
         return hr;
     }
 
+    SUmaterials = (SUMATERIAL_T*)malloc(project.materials_cnt * sizeof(SUmaterials[0]));
+    if (SUmaterials == NULL)
+    {
+        return 1;
+    }
+    SUmaterials_cnt = project.materials_cnt;
+    memset(SUmaterials, 0, project.materials_cnt * sizeof(SUmaterials[0]));
+    for (size_t i = 0; i < SUmaterials_cnt; i++)
+    {
+        SUmaterials[i].material = &project.materials[i];
+    }
+
     wprintf(L"_materials_cnt=%d, _details_cnt=%d\n", project.materials_cnt, project.details_cnt);
 
     int res = write_new_model(argv[2]);
 
     project_destroy(&project);
+    free(SUmaterials);
+    SUmaterials = NULL;
+    SUmaterials_cnt = 0;
 
     return res;
 }
