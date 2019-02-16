@@ -490,11 +490,17 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
             if ((op->type == TYPE_DRILLING) && (op->side == i+1))
             {
                 drill_cnt++;
+                DRILL_T dr;
+                dr.d = op->d;
+                dr.depth = op->depth;
+                dr.tdepth = 0;
+
                 double depth = op->depth;
                 if (((i == SIDE_FRONT) || (i == SIDE_BACK))
                         && (depth > d->thickness))
                 {
                     depth = d->thickness;
+                    dr.tdepth = d->thickness;
                 }
 
                 _add_drill(entities, sides[i][0], op, normals[i], depth, i);
