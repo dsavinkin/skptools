@@ -62,8 +62,8 @@ typedef struct {
 } MATERIAL_DEF_T;
 
 typedef struct {
-    MATERIAL_DEF_T *materials;
-    DETAIL_DEF_T *details;
+    MATERIAL_DEF_T *materials; //dynamic array
+    DETAIL_DEF_T *details; //dynamic array
     int materials_cnt;
     int details_cnt;
 } VIYAR_PROJECT_T;

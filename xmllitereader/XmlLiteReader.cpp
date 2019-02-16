@@ -53,9 +53,6 @@
 /***************************************************************/
 
 
-
-
-
 /***************************************************************/
 /*                     Local Variables                         */
 /***************************************************************/
@@ -67,12 +64,6 @@ static double _last_detail_position_Y = 0;
 static double _max_detail_position_X = 0;
 static double _max_detail_position_Y = 0;
 static int _detail_position_direction = 0;
-
-static int _details_cnt = 0;
-static DETAIL_DEF_T details[100];
-
-static int _materials_cnt = 0;
-static MATERIAL_DEF_T model_materials[10];
 
 /***************************************************************/
 /*                     Local Functions                         */
@@ -203,7 +194,7 @@ static int _corner_operation(SUPoint3D points[12], int *band_materials, size_t *
 
     if (cop->edgeMaterial > 0)
     {
-        MATERIAL_DEF_T *m = &model_materials[cop->edgeMaterial-1];
+        MATERIAL_DEF_T *m = &project.materials[cop->edgeMaterial-1];
 
         if (cop->edgeCovering == EDGE_COVER_BOTH)
         {
@@ -424,7 +415,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
     if (d->m_bands[SIDE_FRONT])
     {
         int m_id = d->m_bands[SIDE_FRONT];
-        MATERIAL_DEF_T *m = &model_materials[m_id-1];
+        MATERIAL_DEF_T *m = &project.materials[m_id-1];
         material = m->material;
     }
 
@@ -452,7 +443,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
         if (band_materials[j])
         {
             int m_id = band_materials[j];
-            MATERIAL_DEF_T *m = &model_materials[m_id-1];
+            MATERIAL_DEF_T *m = &project.materials[m_id-1];
             material = m->material;
         }
 
@@ -472,7 +463,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
     if (d->m_bands[SIDE_BACK])
     {
         int m_id = d->m_bands[SIDE_BACK];
-        MATERIAL_DEF_T *m = &model_materials[m_id-1];
+        MATERIAL_DEF_T *m = &project.materials[m_id-1];
         material = m->material;
     }
 
@@ -800,9 +791,9 @@ int write_new_model(const WCHAR *model_filename)
     }
 
     //Add materials to the model and save them as materials[].material
-    for (size_t i = 0; i < _materials_cnt; i++)
+    for (size_t i = 0; i < project.materials_cnt; i++)
     {
-        MATERIAL_DEF_T *m = &model_materials[i];
+        MATERIAL_DEF_T *m = &project.materials[i];
         printf("material %zd: type=%d, thickness=%.1f\n", i+1,
                m->type, m->thickness);
 
@@ -857,13 +848,13 @@ int write_new_model(const WCHAR *model_filename)
         }
     }
 
-    for (size_t i = 0; i < _details_cnt; i++)
+    for (size_t i = 0; i < project.details_cnt; i++)
     {
 #if 1
         printf("Detail %zd:\n", i);
-        _dump_detail(&details[i]);
+        _dump_detail(&project.details[i]);
 #endif
-        _add_update_detail_components(model, &details[i]);
+        _add_update_detail_components(model, &project.details[i]);
     }
 
     // Save the in-memory model to a file
@@ -896,13 +887,7 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
         return hr;
     }
 
-    _details_cnt = project.details_cnt;
-    memcpy(details, project.details, project.details_cnt * sizeof(DETAIL_DEF_T));
-
-    _materials_cnt = project.materials_cnt;
-    memcpy(model_materials, project.materials, project.materials_cnt * sizeof(MATERIAL_DEF_T));
-
-    wprintf(L"_materials_cnt=%d, _details_cnt=%d\n", _materials_cnt, _details_cnt);
+    wprintf(L"_materials_cnt=%d, _details_cnt=%d\n", project.materials_cnt, project.details_cnt);
 
     int res = write_new_model(argv[2]);
 
