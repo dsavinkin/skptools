@@ -111,16 +111,16 @@ static void _add_face(SUEntitiesRef entities, SUPoint3D *vertices, size_t num_ve
     SU_CALL(SUEntitiesAddFaces(entities, 1, &face));
 }
 
-static void _add_drill(SUEntitiesRef entities, SUPoint3D corner, OPERATION_T *op, SUVector3D normal, double depth, size_t side)
+static void _detail_add_drill(SUEntitiesRef entities, SUPoint3D corner, SUVector3D normal, const DRILL_T *dr)
 {
     SUPoint3D center = {MM2INCH(corner.x), MM2INCH(corner.y), MM2INCH(corner.z)};
 
-    double X = MM2INCH(op->x);
-    double Y = MM2INCH(op->y);
-    double D = MM2INCH(op->d);
-    double DEPTH = MM2INCH(depth);
+    double X = MM2INCH(dr->x);
+    double Y = MM2INCH(dr->y);
+    double D = MM2INCH(dr->d);
+    double DEPTH = MM2INCH(dr->tdepth > 0 ? dr->tdepth : dr->depth);
 
-    if ((side == SIDE_TOP) || (side == SIDE_BOTTOM))
+    if ((dr->side == SIDE_TOP) || (dr->side == SIDE_BOTTOM))
     {
         center.z -= Y;
     }
@@ -129,7 +129,7 @@ static void _add_drill(SUEntitiesRef entities, SUPoint3D corner, OPERATION_T *op
         center.y += Y;
     }
 
-    if ((side == SIDE_LEFT) || (side == SIDE_RIGHT))
+    if ((dr->side == SIDE_LEFT) || (dr->side == SIDE_RIGHT))
     {
         center.z -= X;
     }
@@ -140,7 +140,7 @@ static void _add_drill(SUEntitiesRef entities, SUPoint3D corner, OPERATION_T *op
 
     SUPoint3D start_point = center;
 
-    if ((side == SIDE_LEFT) || (side == SIDE_RIGHT))
+    if ((dr->side == SIDE_LEFT) || (dr->side == SIDE_RIGHT))
     {
         start_point.z += D/2;
     }
@@ -162,7 +162,7 @@ static void _add_drill(SUEntitiesRef entities, SUPoint3D corner, OPERATION_T *op
     };
 
     start_point = center2;
-    if ((side == SIDE_LEFT) || (side == SIDE_RIGHT))
+    if ((dr->side == SIDE_LEFT) || (dr->side == SIDE_RIGHT))
     {
         start_point.z += D/2;
     }
@@ -481,29 +481,28 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
 
     _add_face(entities, sheet_points, num_sheet_points, material);
 
-    for (size_t i = 0; i < 6; ++i)
+    for (int i = 0; i < 6; ++i)
     {
-        size_t drill_cnt = 0;
         for (size_t j = 0; j < d->operations_cnt; j++)
         {
             OPERATION_T *op = &d->operations[j];
             if ((op->type == TYPE_DRILLING) && (op->side == i+1))
             {
-                drill_cnt++;
                 DRILL_T dr;
                 dr.d = op->d;
+                dr.x = op->x;
+                dr.y = op->y;
                 dr.depth = op->depth;
                 dr.tdepth = 0;
+                dr.side = i;
 
-                double depth = op->depth;
                 if (((i == SIDE_FRONT) || (i == SIDE_BACK))
-                        && (depth > d->thickness))
+                        && (dr.depth > d->thickness))
                 {
-                    depth = d->thickness;
                     dr.tdepth = d->thickness;
                 }
 
-                _add_drill(entities, sides[i][0], op, normals[i], depth, i);
+                _detail_add_drill(entities, sides[i][0], normals[i], &dr);
             }
         }
     }

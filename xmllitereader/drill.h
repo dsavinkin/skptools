@@ -12,8 +12,11 @@
 
 typedef struct {
     double d;
+    double x;
+    double y;
     double depth;
     double tdepth; //through
+    int side;
 } DRILL_T;
 
 /***************************************************************/
