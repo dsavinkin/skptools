@@ -503,6 +503,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                 }
 
                 _detail_add_drill(entities, sides[i][0], normals[i], &dr);
+                drill_append(&dr);
             }
         }
     }
@@ -915,12 +916,17 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
 
     wprintf(L"_materials_cnt=%d, _details_cnt=%d\n", project.materials_cnt, project.details_cnt);
 
+    drill_init();
+
     int res = write_new_model(argv[2]);
 
     project_destroy(&project);
     free(SUmaterials);
     SUmaterials = NULL;
     SUmaterials_cnt = 0;
+
+    drill_print_stat();
+    drill_deinit();
 
     return res;
 }

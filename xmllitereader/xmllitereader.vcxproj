@@ -136,6 +136,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="common.cpp" />
     <ClCompile Include="drill.cpp" />
     <ClCompile Include="viyar.cpp" />
     <ClCompile Include="XmlLiteReader.cpp" />

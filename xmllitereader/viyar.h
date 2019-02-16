@@ -76,7 +76,7 @@ typedef struct {
 } VIYAR_PROJECT_T;
 
 /***************************************************************/
-/*                  Function definitions                       */
+/*                  Function declarations                      */
 /***************************************************************/
 
 VIYAR_PROJECT_T project_init();

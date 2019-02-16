@@ -45,3 +45,20 @@
 /***************************************************************/
 /*                       Global Types                          */
 /***************************************************************/
+
+typedef struct {
+    unsigned char *array;
+    size_t used;
+    size_t size;
+    size_t element_size;
+} ARRAY_T;
+
+/***************************************************************/
+/*                  Function declarations                      */
+/***************************************************************/
+
+void array_init(ARRAY_T *a, size_t element_size);
+void array_insert(ARRAY_T *a, void *element);
+void *array_get_element(ARRAY_T *a, size_t pos);
+size_t array_get_count(ARRAY_T *a);
+void array_free(ARRAY_T *a);
