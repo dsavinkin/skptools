@@ -53,8 +53,8 @@
 /***************************************************************/
 
 typedef struct {
-    MATERIAL_DEF_T *material;
-    SUMaterialRef sumref;
+    MATERIAL_DEF_T *mdef;
+    SUMaterialRef mref;
 } SUMATERIAL_T;
 
 /***************************************************************/
@@ -201,7 +201,7 @@ static int _corner_operation(SUPoint3D points[12], int *band_materials, size_t *
 
     if (cop->edgeMaterial > 0)
     {
-        MATERIAL_DEF_T *m = &project.materials[cop->edgeMaterial-1];
+        MATERIAL_DEF_T *m = SUmaterials[cop->edgeMaterial-1].mdef;
 
         if (cop->edgeCovering == EDGE_COVER_BOTH)
         {
@@ -422,7 +422,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
     if (d->m_bands[SIDE_FRONT])
     {
         int m_id = d->m_bands[SIDE_FRONT];
-        MATERIAL_DEF_T *m = &project.materials[m_id-1];
+        MATERIAL_DEF_T *m = SUmaterials[m_id-1].mdef;
         material = m->material;
     }
 
@@ -450,7 +450,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
         if (band_materials[j])
         {
             int m_id = band_materials[j];
-            MATERIAL_DEF_T *m = &project.materials[m_id-1];
+            MATERIAL_DEF_T *m = SUmaterials[m_id-1].mdef;
             material = m->material;
         }
 
@@ -470,7 +470,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
     if (d->m_bands[SIDE_BACK])
     {
         int m_id = d->m_bands[SIDE_BACK];
-        MATERIAL_DEF_T *m = &project.materials[m_id-1];
+        MATERIAL_DEF_T *m = SUmaterials[m_id-1].mdef;
         material = m->material;
     }
 
@@ -798,9 +798,9 @@ int write_new_model(const WCHAR *model_filename)
     }
 
     //Add materials to the model and save them as materials[].material
-    for (size_t i = 0; i < project.materials_cnt; i++)
+    for (size_t i = 0; i < SUmaterials_cnt; i++)
     {
-        MATERIAL_DEF_T *m = &project.materials[i];
+        MATERIAL_DEF_T *m = SUmaterials[i].mdef;
         printf("material %zd: type=%d, thickness=%.1f\n", i+1,
                m->type, m->thickness);
 
@@ -903,7 +903,7 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
     memset(SUmaterials, 0, project.materials_cnt * sizeof(SUmaterials[0]));
     for (size_t i = 0; i < SUmaterials_cnt; i++)
     {
-        SUmaterials[i].material = &project.materials[i];
+        SUmaterials[i].mdef = &project.materials[i];
     }
 
     wprintf(L"_materials_cnt=%d, _details_cnt=%d\n", project.materials_cnt, project.details_cnt);
