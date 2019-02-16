@@ -423,7 +423,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
     {
         int m_id = d->m_bands[SIDE_FRONT];
         MATERIAL_DEF_T *m = SUmaterials[m_id-1].mdef;
-        material = m->material;
+        material = SUmaterials[m_id-1].mref;
     }
 
     for (size_t cn = 0; cn < CORNER_MAX; cn++)
@@ -451,7 +451,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
         {
             int m_id = band_materials[j];
             MATERIAL_DEF_T *m = SUmaterials[m_id-1].mdef;
-            material = m->material;
+            material = SUmaterials[m_id-1].mref;
         }
 
         SUPoint3D points[4];
@@ -471,7 +471,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
     {
         int m_id = d->m_bands[SIDE_BACK];
         MATERIAL_DEF_T *m = SUmaterials[m_id-1].mdef;
-        material = m->material;
+        material = SUmaterials[m_id-1].mref;
     }
 
     for (size_t j = 0 ; j < num_sheet_points; j++)
@@ -801,6 +801,8 @@ int write_new_model(const WCHAR *model_filename)
     for (size_t i = 0; i < SUmaterials_cnt; i++)
     {
         MATERIAL_DEF_T *m = SUmaterials[i].mdef;
+        SUMaterialRef *mref_ptr = &SUmaterials[i].mref;
+
         printf("material %zd: type=%d, thickness=%.1f\n", i+1,
                m->type, m->thickness);
 
@@ -837,7 +839,7 @@ int write_new_model(const WCHAR *model_filename)
 
             char m_name[32];
             snprintf(m_name, sizeof(m_name), "kromka_%.1f", m->thickness);
-            _add_update_material(model, &m->material, m_name, &color);
+            _add_update_material(model, mref_ptr, m_name, &color);
         }
         else if (m->type == TYPE_SHEET)
         {
@@ -847,11 +849,11 @@ int write_new_model(const WCHAR *model_filename)
             color.green = 255;
             color.blue = 255;
 
-            _add_update_material(model, &m->material, "Sheet", &color);
+            _add_update_material(model, mref_ptr, "Sheet", &color);
         }
         else
         {
-            m->material = SU_INVALID;
+            *mref_ptr = SU_INVALID;
         }
     }
 

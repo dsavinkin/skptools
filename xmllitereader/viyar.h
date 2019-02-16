@@ -57,8 +57,6 @@ typedef enum {
 typedef struct {
     MATERIAL_TYPE_T type;
     double thickness;
-    //void *material;
-    SUMaterialRef material;
 } MATERIAL_DEF_T;
 
 typedef struct {
