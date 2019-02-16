@@ -140,7 +140,7 @@ static void _list_entities(SUEntitiesRef entities, const char *prefix)
                     delete []name_utf8;
                 }
 
-                if (1)
+                if (0)
                 {
                     SUStringRef guid = SU_INVALID;
                     SUStringCreate(&guid);
@@ -396,7 +396,7 @@ int main(int argc, char **argv)
                     delete []name_utf8;
                 }
 
-                if (1)
+                if (0)
                 {
                     SUStringRef guid = SU_INVALID;
                     SUStringCreate(&guid);

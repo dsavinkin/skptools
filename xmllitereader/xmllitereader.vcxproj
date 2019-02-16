@@ -136,7 +136,14 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="drill.cpp" />
+    <ClCompile Include="viyar.cpp" />
     <ClCompile Include="XmlLiteReader.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="common.h" />
+    <ClInclude Include="drill.h" />
+    <ClInclude Include="viyar.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
