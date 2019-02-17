@@ -45,13 +45,18 @@
 /***************************************************************/
 /*                       Global Types                          */
 /***************************************************************/
+extern "C"
+{
 
 typedef struct {
     unsigned char *array;
     size_t used;
     size_t size;
     size_t element_size;
+    size_t alligned_element_size;
 } ARRAY_T;
+
+typedef bool (*element_cmp_fn)(void *element, void *data);
 
 /***************************************************************/
 /*                  Function declarations                      */
@@ -62,3 +67,6 @@ void array_insert(ARRAY_T *a, void *element);
 void *array_get_element(ARRAY_T *a, size_t pos);
 size_t array_get_count(ARRAY_T *a);
 void array_free(ARRAY_T *a);
+void *array_find_element(ARRAY_T *a, element_cmp_fn cb, void *data);
+
+} //extern "C"

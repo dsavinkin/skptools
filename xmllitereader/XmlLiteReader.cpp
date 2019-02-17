@@ -503,7 +503,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                 }
 
                 _detail_add_drill(entities, sides[i][0], normals[i], &dr);
-                drill_append(&dr);
+                drill_append(&dr, d->amount);
             }
         }
     }
