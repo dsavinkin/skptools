@@ -75,11 +75,15 @@ void drill_append(const DRILL_T *dr, size_t amount)
 void drill_print_stat(void)
 {
     printf("array_get_count() = %zd\n", array_get_count(&drarray));
+    size_t total_drill_cnt = 0;
     for (size_t i = 0; i < array_get_count(&drarray); i++)
     {
         DRILL_ITEM_T *item_ptr = (DRILL_ITEM_T *)array_get_element(&drarray, i);
         printf("drill_type %3zd: d=%.1f, depth=%.1f, tdepth=%.1f, amount=%zd\n", i, item_ptr->dr.d, item_ptr->dr.depth, item_ptr->dr.tdepth, item_ptr->amount);
+        total_drill_cnt += item_ptr->amount;
     }
+
+    printf("total drill count: %zd\n", total_drill_cnt);
 }
 
 void drill_deinit(void)
