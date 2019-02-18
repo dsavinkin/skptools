@@ -23,7 +23,7 @@ void array_init(ARRAY_T *a, size_t element_size)
     //a->alligned_element_size = element_size;
 }
 
-void array_insert(ARRAY_T *a, void *element)
+void *array_insert(ARRAY_T *a, void *element)
 {
     if (a->used == a->size)
     {
@@ -38,8 +38,10 @@ void array_insert(ARRAY_T *a, void *element)
         a->array = (unsigned char *)realloc(a->array, a->size * a->alligned_element_size);
     }
 
-    memcpy(&a->array[a->used * a->alligned_element_size], element, a->element_size);
+    void *insert_ptr = &a->array[a->used * a->alligned_element_size];
+    memcpy(insert_ptr, element, a->element_size);
     a->used++;
+    return insert_ptr;
 }
 
 void *array_get_element(ARRAY_T *a, size_t pos)

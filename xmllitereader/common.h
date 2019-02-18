@@ -63,7 +63,7 @@ typedef bool (*element_cmp_fn)(void *element, void *data);
 /***************************************************************/
 
 void array_init(ARRAY_T *a, size_t element_size);
-void array_insert(ARRAY_T *a, void *element);
+void *array_insert(ARRAY_T *a, void *element);
 void *array_get_element(ARRAY_T *a, size_t pos);
 size_t array_get_count(ARRAY_T *a);
 void array_free(ARRAY_T *a);

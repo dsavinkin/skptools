@@ -22,6 +22,24 @@ typedef struct {
     int side;
 } DRILL_T;
 
+typedef struct {
+    char *name;
+    double dmin;
+    double dmax;
+    double depthmin;
+    double depthmax;
+    bool through;
+} DRILL_CLASS_T;
+
+typedef struct {
+    char *name;
+    DRILL_CLASS_T *dc1;
+    DRILL_CLASS_T *dc2;
+    bool side;
+    double distmin;
+    double distmax;
+} JOINT_T;
+
 /***************************************************************/
 /*                  Function definitions                       */
 /***************************************************************/
