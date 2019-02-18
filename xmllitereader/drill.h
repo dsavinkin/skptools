@@ -38,6 +38,8 @@ typedef struct {
     bool side;
     double distmin;
     double distmax;
+    double zmin;
+    double zmax;
 } JOINT_T;
 
 /***************************************************************/

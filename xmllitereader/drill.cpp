@@ -40,8 +40,9 @@ static DRILL_CLASS_T *_add_drill_class(char *name, double dmin, double dmax,
     return (DRILL_CLASS_T*)array_insert(&drill_classes, &dc);
 }
 
+//TODO: add drills to joint one by one or define set of joints
 static JOINT_T *_add_joint(char *name, DRILL_CLASS_T *dc1, DRILL_CLASS_T *dc2,
-                           bool side, double distmin, double distmax)
+                           bool side, double distmin, double distmax, double zmin, double zmax)
 {
     JOINT_T joint;
     joint.name = name;
@@ -50,20 +51,53 @@ static JOINT_T *_add_joint(char *name, DRILL_CLASS_T *dc1, DRILL_CLASS_T *dc2,
     joint.side = side;
     joint.distmin = distmin;
     joint.distmax = distmax;
+    joint.zmin = zmin;
+    joint.zmax = zmax;
 
     return (JOINT_T*)array_insert(&joints, &joint);
 }
 
 static void _joints_init_values(void)
 {
-    DRILL_CLASS_T *dc1;
-    DRILL_CLASS_T *dc2;
-    JOINT_T *joint;
+    DRILL_CLASS_T *dc[10];
 
-    dc1 = _add_drill_class("Konfirmat_head", 6.4, 7.0, 2, 21, true);
+    dc[0] = _add_drill_class("Konfirmat 6.4 head", 6.4, 7.0, 2, 21, true);
     //TODO: can we check the sum of thickness + depth?
-    dc2 = _add_drill_class("Konfirmat_thread", 4.4, 5.0, 33, 50, false);
-    joint = _add_joint("Konfirmat", dc1, dc2, false, 0, 0);
+    dc[1] = _add_drill_class("Konfirmat x50 thread", 4.4, 5.0, 33, 50, false);
+    _add_joint("Konfirmat 6.4/50", dc[0], dc[1], false, 0, 0, 0, 0);
+
+    dc[0] = _add_drill_class("dowel face", 8.0, 8.0, 12, 15, false);
+    dc[1] = _add_drill_class("dowel 8x30 side", 8.0, 8.0, 20, 21, false);
+    dc[2] = _add_drill_class("dowel 8x35 side", 8.0, 8.0, 25, 26, false);
+    dc[3] = _add_drill_class("dowel 8x60 face", 8.0, 8.0, 16, 21, true);
+    _add_joint("dowel 8x30", dc[0], dc[1], false, 0, 0, 0, 0);
+    _add_joint("dowel 8x35", dc[0], dc[2], false, 0, 0, 0, 0);
+    _add_joint("dowel 8x60", dc[3], dc[2], false, 0, 0, 0, 0);
+
+    dc[0] = _add_drill_class("rafix VB 35/18 drill", 20, 20, 14, 18, false);
+    dc[1] = _add_drill_class("rafix VB 35/16 drill", 20, 20, 12.5, 18, false);
+    dc[2] = _add_drill_class("rafix VB 135/16 drill", 20, 20, 12.5, 18, false);
+    dc[3] = _add_drill_class("for rafix DU 321", 5, 5, 11.5, 18, false);
+    _add_joint("rafix VB 35/18", dc[0], dc[3], true, 9.5, 10, 9, 9.5);
+    _add_joint("rafix VB 35/16", dc[1], dc[3], true, 9.5, 10, 7.5, 8);
+    _add_joint("rafix VB 135/16", dc[2], dc[3], true, 9.5, 10, 8, 8);
+
+    dc[0] = _add_drill_class("DU 232 30mm", 5, 5, 11.5, 18, false);
+    dc[1] = _add_drill_class("DU 853 49/30mm", 8, 8, 18, 19, true);
+    dc[2] = _add_drill_class("DU 868 46/30mm", 8, 8, 16, 16, true);
+
+    //TODO: fit this drill with dc4..7
+    dc[3] = _add_drill_class("Rastex side", 8.0, 8.0, 28, 36, false);
+    dc[4] = _add_drill_class("Rastex 15/12", 15, 15, 10, 12.6, false);
+    dc[5] = _add_drill_class("Rastex 15/15", 15, 15, 12.7, 13.3, false);
+    dc[6] = _add_drill_class("Rastex 15/18", 15, 15, 13.4, 15.6, false);
+    dc[7] = _add_drill_class("Rastex 15/22", 15, 15, 15.7, 19, false);
+
+    _add_joint("Rastex 15/12 + DU 232", dc[0], dc[4], true, 34, 34, 6, 6);
+    _add_joint("Rastex 15/15 + DU 232", dc[1], dc[4], true, 34, 34, 8, 8);
+    _add_joint("Rastex 15/18 + DU 232", dc[2], dc[4], true, 34, 34, 9, 9);
+    _add_joint("Rastex 15/22 + DU 232", dc[3], dc[4], true, 34, 34, 11, 11);
+
 }
 
 static bool drill_class_cmp_fn(void *element, void *data)
@@ -76,14 +110,10 @@ static bool drill_class_cmp_fn(void *element, void *data)
         return false;
     }
 
-    //printf("compare %.1f <= %.1f <= %.1f\n", dc->dmin, dr->d, dc->dmax);
-
     if ((dr->d < dc->dmin) || (dr->d > dc->dmax))
     {
         return false;
     }
-
-    //printf("compare %d == (%.1f > 0)\n", dc->through, dr->tdepth);
 
     bool through = (dr->tdepth > 0);
     if (through != dc->through)
@@ -193,7 +223,7 @@ void drill_print_stat(void)
 
         DRILL_CLASS_T *dc = _drill_find_class(&(item_ptr->dr));
 
-        printf("drill_type %3zd: d=%.1f, depth=%.1f, tdepth=%.1f, amount=%zd, class_name: %s\n",
+        printf("drill_type %3zd: d=%.1f, depth=%.1f, tdepth=%.1f, amount=%zd, '%s'\n",
                i, item_ptr->dr.d, item_ptr->dr.depth, item_ptr->dr.tdepth, item_ptr->amount, dc ? dc->name : "NONE");
         total_drill_cnt += item_ptr->amount;
 
