@@ -794,18 +794,33 @@ int write_new_model(const WCHAR *model_filename)
 
     std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
     std::string model_filename_utf8;
+    std::string model_basename_utf8;
     model_filename_utf8 = converter.to_bytes(model_filename);
+    model_basename_utf8 = converter.to_bytes(model_filename);
 
-    if (model_filename_utf8.compare(model_filename_utf8.size()-4, 4, ".skp") == 0)
+    if ((model_basename_utf8.size() > 4) &&
+        (model_basename_utf8.compare(model_basename_utf8.size() - 4, 4, ".skp") == 0))
     {
-        model_filename_utf8.replace(model_filename_utf8.end() - 4, model_filename_utf8.end(), "");
+        model_basename_utf8.replace(model_basename_utf8.end() - 4, model_basename_utf8.end(), "");
     }
 
-    printf("Model file is '%s'\n", model_filename_utf8.c_str());
+    if ((model_basename_utf8.size() > 4) &&
+        (model_basename_utf8.compare(model_basename_utf8.size() - 4, 4, "_SU3") == 0))
+    {
+        model_basename_utf8.replace(model_basename_utf8.end() - 4, model_basename_utf8.end(), "");
+    }
+    else if ((model_basename_utf8.size() > 7) &&
+             ((model_basename_utf8.compare(model_basename_utf8.size() - 7, 7, "_SU2017") == 0) ||
+             (model_basename_utf8.compare(model_basename_utf8.size() - 7, 7, "_SU2016") == 0)))
+    {
+        model_basename_utf8.replace(model_basename_utf8.end() - 7, model_basename_utf8.end(), "");
+    }
+
+    printf("Model file is '%s', basename '%s' \n", model_filename_utf8.c_str(), model_basename_utf8.c_str());
 
     if (SUModelCreateFromFile(&model, model_filename_utf8.c_str()) != SU_ERROR_NONE)
     {
-        wprintf(L"Unable to open model file '%s' - will create new one.\n", model_filename);
+        wprintf("Unable to open model file '%s' - will create new one.\n", model_filename_utf8.c_str());
         SU_CALL(SUModelCreate(&model));
     }
 
@@ -879,10 +894,10 @@ int write_new_model(const WCHAR *model_filename)
     }
 
     // Save the in-memory model to a file
-    SU_CALL(SUModelSaveToFile(model, (model_filename_utf8 + ".skp").c_str()));
-    SU_CALL(SUModelSaveToFileWithVersion(model, (model_filename_utf8 + "_SU2017" + ".skp").c_str(), SUModelVersion_SU2017));
-    SU_CALL(SUModelSaveToFileWithVersion(model, (model_filename_utf8 + "_SU2016" + ".skp").c_str(), SUModelVersion_SU2016));
-    SU_CALL(SUModelSaveToFileWithVersion(model, (model_filename_utf8 + "_SU3" + ".skp").c_str(), SUModelVersion_SU3)); //oldest supported version
+    SU_CALL(SUModelSaveToFile(model, (model_basename_utf8 + ".skp").c_str()));
+    SU_CALL(SUModelSaveToFileWithVersion(model, (model_basename_utf8 + "_SU2017" + ".skp").c_str(), SUModelVersion_SU2017));
+    SU_CALL(SUModelSaveToFileWithVersion(model, (model_basename_utf8 + "_SU2016" + ".skp").c_str(), SUModelVersion_SU2016));
+    SU_CALL(SUModelSaveToFileWithVersion(model, (model_basename_utf8 + "_SU3" + ".skp").c_str(), SUModelVersion_SU3)); //oldest supported version
 
     // Must release the model or there will be memory leaks
     SU_CALL(SUModelRelease(&model));
