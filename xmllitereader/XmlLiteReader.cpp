@@ -76,6 +76,40 @@ static int _detail_position_direction = 0;
 /*                     Local Functions                         */
 /***************************************************************/
 
+static wchar_t* fromUTF8(const char* src)
+{
+    if(!src)
+        { return NULL; }
+
+    size_t src_length = strlen(src);
+    int length = MultiByteToWideChar(CP_UTF8, 0, src, (int)src_length, 0, 0);
+    wchar_t *output_buffer = (wchar_t*)malloc((length+1) * sizeof(wchar_t));
+    if(output_buffer) {
+        MultiByteToWideChar(CP_UTF8, 0, src, (int)src_length, output_buffer, length);
+        output_buffer[length] = L'\0';
+    }
+
+    return output_buffer;
+}
+
+static char* toUTF8(const wchar_t* src)
+{
+    if(!src)
+        { return NULL; }
+
+    size_t src_length = wcslen(src);
+    int length = WideCharToMultiByte(CP_UTF8, 0, src, (int)src_length,
+                                     0, 0, NULL, NULL);
+    char *output_buffer = (char*)malloc((length+1) * sizeof(char));
+    if(output_buffer) {
+        WideCharToMultiByte(CP_UTF8, 0, src, (int)src_length,
+                            output_buffer, length, NULL, NULL);
+        output_buffer[length] = '\0';
+    }
+
+    return output_buffer;
+}
+
 void _dump_detail(DETAIL_DEF_T *d)
 {
     if (!d)
@@ -84,7 +118,6 @@ void _dump_detail(DETAIL_DEF_T *d)
     }
 
     wprintf(L"name:        %s\n", d->name);
-    printf("description: %s\n", d->description);
     printf("size:        %.1f/%.1f/%.1f\n", d->width, d->height, d->thickness);
     printf("amount:      %zd\n", d->amount);
 }
@@ -512,8 +545,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
 
 static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail_def)
 {
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-    std::string utf8;
+    char *utf8 = NULL;
     SUEntitiesRef entities = SU_INVALID;
     SUComponentDefinitionRef component = SU_INVALID;
     SUComponentInstanceRef instance = SU_INVALID;
@@ -539,7 +571,7 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
 
     if (detail_def->name != NULL)
     {
-        utf8 = converter.to_bytes(detail_def->name);
+        utf8 = toUTF8(detail_def->name);
 
         size_t num_component_def = 0;
         SUModelGetNumComponentDefinitions(model, &num_component_def);
@@ -565,7 +597,7 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
                     // Now we have the name in a form we can use
                     SU_CALL(SUStringRelease(&name));
 
-                    ComponentFound = (strcmp(utf8.c_str(), name_utf8) == 0);
+                    ComponentFound = (strcmp(utf8, name_utf8) == 0);
                     delete []name_utf8;
 
                     //SU_CALL(SUComponentDefinitionGetNumInstances(component, &componentNumInstancesCount));
@@ -577,8 +609,8 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
 
     if (ComponentFound)
     {
-        printf("Found component with name '%s', instances =%zd (required %zd) - update it.\n",
-                utf8.c_str(), componentNumInstancesCount, detail_def->amount);
+        wprintf(L"Found component with name '%s', instances =%zd (required %zd) - update it.\n",
+                detail_def->name, componentNumInstancesCount, detail_def->amount);
     }
     else
     {
@@ -587,12 +619,14 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
         SU_CALL(SUComponentDefinitionCreate(&component));
         if (detail_def->name != NULL)
         {
-            printf("Set component name '%s'\n", utf8.c_str());
-            SU_CALL(SUComponentDefinitionSetName(component, utf8.c_str()));
+            wprintf(L"Set component name '%s'\n", detail_def->name);
+            SU_CALL(SUComponentDefinitionSetName(component, utf8));
         }
 
         SU_CALL(SUModelAddComponentDefinitions(model, 1, &component));
     }
+
+    free(utf8);
 
     if (componentNumInstancesCount > 0)
     {
@@ -909,6 +943,7 @@ int write_new_model(const WCHAR *model_filename)
 
 int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
 {
+    setlocale(LC_ALL, "");
     if (argc != 3)
     {
         wprintf(L"Usage: XmlLiteReader <viyar_project_file> <sketchup_model_file>\n");

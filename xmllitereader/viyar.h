@@ -44,7 +44,6 @@ typedef struct {
 
 typedef struct {
     wchar_t *name;
-    char *description;
     int material_id;
     double width;
     double height;
