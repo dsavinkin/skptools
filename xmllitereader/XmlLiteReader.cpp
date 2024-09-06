@@ -791,6 +791,7 @@ int write_new_model(const WCHAR *model_filename)
     SUInitialize();
     // Create an empty model
     SUModelRef model = SU_INVALID;
+    SUModelLoadStatus status;
 
     std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
     std::string model_filename_utf8;
@@ -818,9 +819,9 @@ int write_new_model(const WCHAR *model_filename)
 
     printf("Model file is '%s', basename '%s' \n", model_filename_utf8.c_str(), model_basename_utf8.c_str());
 
-    if (SUModelCreateFromFile(&model, model_filename_utf8.c_str()) != SU_ERROR_NONE)
+    if (SUModelCreateFromFileWithStatus(&model, model_filename_utf8.c_str(), &status) != SU_ERROR_NONE)
     {
-        wprintf("Unable to open model file '%s' - will create new one.\n", model_filename_utf8.c_str());
+        wprintf(L"Unable to open model file '%s' - will create new one.\n", model_filename);
         SU_CALL(SUModelCreate(&model));
     }
 
