@@ -24,8 +24,8 @@ typedef HRESULT (*attribute_cb)(const WCHAR* elementName,
 
 typedef enum {
     STATE_ROOT = 0,
-    STATE_MATERIALS,
-    STATE_DETAILS,
+    STATE_GOOD,
+    STATE_OPERATION,
     STATE_MAX
 } VIYAR_STATE_T;
 
@@ -41,6 +41,26 @@ typedef enum {
     DETAIL_OPERATIONS
 } DETAIL_STATE_T;
 
+/*
+ * Typical project structure:
+
+<project ... >
+    <good typeId="product" count="1" id="1" name= ...
+        <part l="864" w="350" dl="864 ... >
+        ...
+    </good>
+    <good typeId="tool.cutting" ... >
+    <good typeId="tool.edgeline" ... >
+    <good typeId="sheet" ... > //materials
+    <good typeId="band" ... >
+    <operation cTrimL="10" ... >
+        <part id="2"/>
+        <part id="3"/>
+    </operation>
+</project>
+
+ */
+
 /***************************************************************/
 /*                     Local Variables                         */
 /***************************************************************/
@@ -53,19 +73,19 @@ VIYAR_PROJECT_T *p = NULL;
 
 static HRESULT _model_open_create()
 {
-    //wprintf(L"TODO: create/read Model\n");
+    wprintf(L"TODO: create/read Model\n");
     return S_OK;
 }
 
 static HRESULT _model_save_close()
 {
-    //wprintf(L"TODO: save/close Model\n");
+    wprintf(L"TODO: save/close Model\n");
     return S_OK;
 }
 
 static HRESULT _element_start(const WCHAR* ElementName, void *data)
 {
-    //wprintf(L"S %d: Element start (%p) <%s ...\n", _state, data, ElementName);
+    wprintf(L"S %d %d: Element start (%p) <%s ...\n", _state, _model_state, data, ElementName);
 
     switch (_state)
     {
@@ -78,36 +98,37 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                     _model_open_create();
                 }
             }
-            else if (wcscmp(ElementName, L"materials") == 0)
+            else if (wcscmp(ElementName, L"good") == 0)
             {
                 if (_model_state != MODEL_OPENED)
                 {
                     PARSE_FAIL(E_ABORT);
                 }
-                _state = STATE_MATERIALS;
-                if (p->materials_cnt != 0)
-                {
-                    PARSE_FAIL(E_ABORT);
-                }
+                _state = STATE_GOOD;
             }
-            else if (wcscmp(ElementName, L"details") == 0)
+            else if (wcscmp(ElementName, L"operation") == 0)
             {
                 if (_model_state != MODEL_OPENED)
                 {
                     PARSE_FAIL(E_ABORT);
                 }
-                _state = STATE_DETAILS;
-                if (p->details_cnt != 0)
-                {
-                    PARSE_FAIL(E_ABORT);
-                }
+                _state = STATE_OPERATION;
             }
             else
             {
                 // Ignore
             }
             break;
+        case STATE_GOOD:
+            if (wcscmp(ElementName, L"part") == 0)
+            {
+                p->details_cnt++;
+                p->details = (DETAIL_DEF_T*)realloc(p->details, sizeof(DETAIL_DEF_T)*p->details_cnt);
+                wprintf(L"p->details_cnt=%d\n", p->details_cnt);
+            }
+            break;
 
+#if 0
         case STATE_MATERIALS:
             if (wcscmp(ElementName, L"material") == 0)
             {
@@ -192,7 +213,7 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                 }
             }
             break;
-
+#endif
         default:
             PARSE_FAIL(E_ABORT);
     }
@@ -202,7 +223,7 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
 
 static HRESULT _element_end(const WCHAR* ElementName, void *data)
 {
-    //wprintf(L"S %d: End element </%s> (%p)\n", _state, ElementName, data);
+    wprintf(L"S %d: End element </%s> (%p)\n", _state, ElementName, data);
 
     switch (_state)
     {
@@ -217,24 +238,12 @@ static HRESULT _element_end(const WCHAR* ElementName, void *data)
             }
             break;
 
-        case STATE_MATERIALS:
-
-            if (wcscmp(ElementName, L"material") == 0)
-            {
-                //wprintf(L"TODO: add material (%d) to Model\n", _materials_cnt);
-            }
-            else if (wcscmp(ElementName, L"materials") == 0)
-            {
-                _state = STATE_ROOT;
-            }
-            break;
-
-        case STATE_DETAILS:
-            if (wcscmp(ElementName, L"detail") == 0)
+        case STATE_GOOD:
+            if (wcscmp(ElementName, L"good") == 0)
             {
                 //wprintf(L"TODO: add detail (%d) to Model\n", _details_cnt);
             }
-            else if (wcscmp(ElementName, L"details") == 0)
+            else if (wcscmp(ElementName, L"goods") == 0)
             {
                 _state = STATE_ROOT;
             }
@@ -252,7 +261,7 @@ static HRESULT _parse_declaration(const WCHAR* ElementName,
                                   const WCHAR* Value,
                                   void *data)
 {
-    wprintf(L"declaration %s=\"%s\"> (%p)\n", LocalName, Value, data);
+    wprintf(L"_parse_declaration: declaration %s=\"%s\"> (%p)\n", LocalName, Value, data);
 
     return S_OK;
 }
@@ -325,6 +334,22 @@ static HRESULT _parse_material(const WCHAR* ElementName,
         return S_FALSE;
     }
 
+    return S_OK;
+}
+
+static HRESULT _parse_good(const WCHAR* ElementName,
+                             const WCHAR* LocalName,
+                             const WCHAR* Value,
+                             void *data)
+{
+    return S_OK;
+}
+
+static HRESULT _parse_operation(const WCHAR* ElementName,
+                                const WCHAR* LocalName,
+                                const WCHAR* Value,
+                                void *data)
+{
     return S_OK;
 }
 
@@ -642,15 +667,15 @@ static HRESULT _parse_element(const WCHAR* ElementName,
                               const WCHAR* Value,
                               void *data)
 {
-    //wprintf(L"<%s %s=\"%s\"> (%p)\n", ElementName, LocalName, Value, data);
+    wprintf(L"_parse_element: <%s %s=\"%s\"> (%p)\n", ElementName, LocalName, Value, data);
 
-    if (_state == STATE_MATERIALS)
+    if (_state == STATE_GOOD)
     {
-        return _parse_material(ElementName, LocalName, Value, data);
+        return _parse_good(ElementName, LocalName, Value, data);
     }
-    else if (_state == STATE_DETAILS)
+    else if (_state == STATE_OPERATION)
     {
-        return _parse_detail(ElementName, LocalName, Value, data);
+        return _parse_operation(ElementName, LocalName, Value, data);
     }
     else if (_state == STATE_ROOT)
     {
@@ -753,7 +778,7 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
         HR(hr);
     }
 
-    if (FAILED(hr = CreateXmlReaderInputWithEncodingName(pFileStream, nullptr, L"windows-1251", FALSE,
+    if (FAILED(hr = CreateXmlReaderInputWithEncodingName(pFileStream, nullptr, L"UTF-8", FALSE,
                     L"c:\temp", &xmlReaderInput)))
     {
         wprintf(L"Error creating xml reader with encoding code page, error is %08.8lx", hr);
