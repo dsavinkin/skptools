@@ -27,7 +27,16 @@ typedef enum {
     STATE_GOOD,
     STATE_OPERATION,
     STATE_MAX
-} VIYAR_STATE_T;
+} STATE_T;
+
+typedef enum {
+    GOOD_NONE = 0,
+    GOOD_PRODUCT,
+    GOOD_TOOL_EDGELINE,
+    GOOD_TOOL_CUTTING,
+    GOOD_BAND,
+    GOOD_SHEET,
+} GOOD_STATE_T;
 
 typedef enum {
     MODEL_NONE,
@@ -65,9 +74,12 @@ typedef enum {
 /*                     Local Variables                         */
 /***************************************************************/
 
-static VIYAR_STATE_T _state = STATE_ROOT;
+static STATE_T _state = STATE_ROOT;
 static MODEL_STATE_T _model_state = MODEL_NONE;
 static DETAIL_STATE_T _detail_state = DETAIL_ATTR;
+static GOOD_STATE_T _good_state = GOOD_NONE;
+
+DETAIL_DEF_T tmp_detail;
 
 VIYAR_PROJECT_T *p = NULL;
 
@@ -85,7 +97,7 @@ static HRESULT _model_save_close()
 
 static HRESULT _element_start(const WCHAR* ElementName, void *data)
 {
-    wprintf(L"S %d %d: Element start (%p) <%s ...\n", _state, _model_state, data, ElementName);
+    wprintf(L"S %d %d: Element start (%p) <%s ...\n", _state, _good_state, data, ElementName);
 
     switch (_state)
     {
@@ -119,12 +131,35 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                 // Ignore
             }
             break;
+
         case STATE_GOOD:
-            if (wcscmp(ElementName, L"part") == 0)
+            if (_good_state == GOOD_PRODUCT)
             {
-                p->details_cnt++;
-                p->details = (DETAIL_DEF_T*)realloc(p->details, sizeof(DETAIL_DEF_T)*p->details_cnt);
-                wprintf(L"p->details_cnt=%d\n", p->details_cnt);
+                if (wcscmp(ElementName, L"part") == 0)
+                {
+                    p->details_cnt++;
+                    p->details = (DETAIL_DEF_T*)realloc(p->details, sizeof(DETAIL_DEF_T)*p->details_cnt);
+
+                    DETAIL_DEF_T *d = &p->details[p->details_cnt-1];
+                    memset(d, 0, sizeof(DETAIL_DEF_T));
+                    _detail_state = DETAIL_ATTR;
+
+                    for (size_t i = 0 ; i < 6; i++)
+                    {
+                        //Set default material for all bands = material 1
+                        d->m_bands[i] = 1;
+                    }
+
+                }
+            }
+            break;
+
+        case STATE_OPERATION:
+            if (wcscmp(ElementName, L"material") == 0)
+            {
+            }
+            else if (wcscmp(ElementName, L"part") == 0)
+            {
             }
             break;
 
@@ -223,7 +258,7 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
 
 static HRESULT _element_end(const WCHAR* ElementName, void *data)
 {
-    wprintf(L"S %d: End element </%s> (%p)\n", _state, ElementName, data);
+    wprintf(L"E %d %d: End element </%s> (%p)\n", _state, _good_state, ElementName, data);
 
     switch (_state)
     {
@@ -241,9 +276,20 @@ static HRESULT _element_end(const WCHAR* ElementName, void *data)
         case STATE_GOOD:
             if (wcscmp(ElementName, L"good") == 0)
             {
-                //wprintf(L"TODO: add detail (%d) to Model\n", _details_cnt);
+                _state = STATE_ROOT;
+                _good_state = GOOD_NONE;
             }
-            else if (wcscmp(ElementName, L"goods") == 0)
+            else if (wcscmp(ElementName, L"part") == 0)
+            {
+                if (_good_state == GOOD_PRODUCT)
+                {
+                    wprintf(L"TODO: add detail (%d) to Model\n", p->details_cnt);
+                }
+            }
+            break;
+
+        case STATE_OPERATION:
+            if (wcscmp(ElementName, L"operation") == 0)
             {
                 _state = STATE_ROOT;
             }
@@ -337,11 +383,46 @@ static HRESULT _parse_material(const WCHAR* ElementName,
     return S_OK;
 }
 
+static HRESULT _parse_project(const WCHAR* ElementName,
+                              const WCHAR* LocalName,
+                              const WCHAR* Value,
+                              void *data)
+{
+    return S_OK;
+}
+
 static HRESULT _parse_good(const WCHAR* ElementName,
                              const WCHAR* LocalName,
                              const WCHAR* Value,
                              void *data)
 {
+    if (wcscmp(ElementName, L"good") == 0)
+    {
+        if (wcscmp(LocalName, L"typeId") == 0)
+        {
+            if (wcscmp(Value, L"product") == 0)
+            {
+                _good_state = GOOD_PRODUCT;
+            }
+            else if (wcscmp(Value, L"tool.edgeline") == 0)
+            {
+                _good_state = GOOD_TOOL_EDGELINE;
+            }
+            else if (wcscmp(Value, L"tool.cutting") == 0)
+            {
+                _good_state = GOOD_TOOL_CUTTING;
+            }
+            else if (wcscmp(Value, L"band") == 0)
+            {
+                _good_state = GOOD_BAND;
+            }
+            else
+            {
+                return S_FALSE;
+            }
+        }
+    }
+
     return S_OK;
 }
 
@@ -667,20 +748,21 @@ static HRESULT _parse_element(const WCHAR* ElementName,
                               const WCHAR* Value,
                               void *data)
 {
-    wprintf(L"_parse_element: <%s %s=\"%s\"> (%p)\n", ElementName, LocalName, Value, data);
+    wprintf(L"P %d %d Element parse: <%s %s=\"%s\"> (%p)\n", _state, _good_state, ElementName, LocalName, Value, data);
 
-    if (_state == STATE_GOOD)
+    switch (_state)
     {
-        return _parse_good(ElementName, LocalName, Value, data);
-    }
-    else if (_state == STATE_OPERATION)
-    {
-        return _parse_operation(ElementName, LocalName, Value, data);
-    }
-    else if (_state == STATE_ROOT)
-    {
-        //return S_FALSE in ROOT state
-        return S_FALSE;
+        case STATE_ROOT:
+            return _parse_project(ElementName, LocalName, Value, data);
+
+        case STATE_GOOD:
+            return _parse_good(ElementName, LocalName, Value, data);
+
+        case STATE_OPERATION:
+            return _parse_operation(ElementName, LocalName, Value, data);
+
+        default:
+            break;
     }
 
     PARSE_FAIL(E_ABORT);

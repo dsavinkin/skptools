@@ -43,6 +43,7 @@ typedef struct {
 } OPERATION_T;
 
 typedef struct {
+    int id;
     wchar_t *name;
     int material_id;
     double width;
