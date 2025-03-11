@@ -85,3 +85,5 @@ void project_destroy(VIYAR_PROJECT_T *project);
 
 int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */);
 
+void _dump_detail(DETAIL_DEF_T *d);
+

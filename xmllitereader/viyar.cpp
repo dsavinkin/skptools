@@ -391,10 +391,68 @@ static HRESULT _parse_project(const WCHAR* ElementName,
     return S_OK;
 }
 
+static HRESULT _parse_product_part(const WCHAR* ElementName,
+                                   const WCHAR* LocalName,
+                                   const WCHAR* Value,
+                                   void *data)
+{
+    if (p->details_cnt < 1)
+    {
+        PARSE_FAIL(E_ABORT);
+    }
+
+    DETAIL_DEF_T *d = &p->details[p->details_cnt-1];
+
+    if (wcscmp(LocalName, L"id") == 0)
+    {
+        d->id = _wtol(Value);
+    }
+    else if (wcscmp(LocalName, L"dw") == 0)
+    {
+        d->width = _wtof(Value);
+        if (d->width <= 0.0)
+        {
+            PARSE_FAIL(E_ABORT);
+        }
+    }
+    else if (wcscmp(LocalName, L"dl") == 0)
+    {
+        d->height = _wtof(Value);
+        if (d->height <= 0.0)
+        {
+            PARSE_FAIL(E_ABORT);
+        }
+    }
+    else if (wcscmp(LocalName, L"count") == 0)
+    {
+        d->amount = _wtol(Value);
+        if (d->amount <= 0)
+        {
+            wprintf(L"Warning: %s = %s\n", LocalName, Value);
+        }
+    }
+    else if (wcscmp(LocalName, L"name") == 0)
+    {
+        //wprintf(L"description='%s'\n", Value);
+        if (wcslen(Value) > 0)
+        {
+            // set name for non-empty components only.
+            d->name = _wcsdup(Value);
+        }
+    }
+    else
+    {
+        //FIXME
+        d->thickness = 18;
+    }
+
+    return S_OK;
+}
+
 static HRESULT _parse_good(const WCHAR* ElementName,
-                             const WCHAR* LocalName,
-                             const WCHAR* Value,
-                             void *data)
+                           const WCHAR* LocalName,
+                           const WCHAR* Value,
+                           void *data)
 {
     if (wcscmp(ElementName, L"good") == 0)
     {
@@ -422,6 +480,13 @@ static HRESULT _parse_good(const WCHAR* ElementName,
             }
         }
     }
+    else if (wcscmp(ElementName, L"part") == 0)
+    {
+        if (_good_state == GOOD_PRODUCT)
+        {
+            return _parse_product_part(ElementName, LocalName, Value, data);
+        }
+    }
 
     return S_OK;
 }
@@ -431,6 +496,29 @@ static HRESULT _parse_operation(const WCHAR* ElementName,
                                 const WCHAR* Value,
                                 void *data)
 {
+    if (wcscmp(ElementName, L"operation") == 0)
+    {
+        if (wcscmp(LocalName, L"typeId") == 0)
+        {
+            if (wcscmp(Value, L"CS") == 0)
+            {
+                //Cutting
+            }
+            else if (wcscmp(Value, L"EL") == 0)
+            {
+                //band
+            }
+            else if (wcscmp(Value, L"XNC") == 0)
+            {
+                //Drill/mill
+            }
+            else
+            {
+                return S_FALSE;
+            }
+        }
+    }
+
     return S_OK;
 }
 
