@@ -117,8 +117,10 @@ void _dump_detail(DETAIL_DEF_T *d)
         return;
     }
 
+    printf("id:          %d\n", d->id);
     wprintf(L"name:        %s\n", d->name);
     printf("size:        %.1f/%.1f/%.1f\n", d->width, d->height, d->thickness);
+    printf("material_id: %d, ", d->material_id);
     printf("amount:      %zd\n", d->amount);
 }
 

@@ -95,6 +95,36 @@ static HRESULT _model_save_close()
     return S_OK;
 }
 
+static DETAIL_DEF_T *_add_detail()
+{
+    p->details_cnt++;
+    p->details = (DETAIL_DEF_T*)realloc(p->details, sizeof(DETAIL_DEF_T)*p->details_cnt);
+    if (p->details == NULL)
+    {
+        return NULL;
+    }
+
+    DETAIL_DEF_T *d = &p->details[p->details_cnt-1];
+    memset(d, 0, sizeof(DETAIL_DEF_T));
+
+    return d;
+}
+
+static MATERIAL_DEF_T *_add_material()
+{
+    p->materials_cnt++;
+    p->materials = (MATERIAL_DEF_T*)realloc(p->materials, sizeof(MATERIAL_DEF_T)*p->materials_cnt);
+    if (p->materials == NULL)
+    {
+        return NULL;
+    }
+
+    MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];;
+    memset(m, 0, sizeof(MATERIAL_DEF_T));
+
+    return m;
+}
+
 static HRESULT _element_start(const WCHAR* ElementName, void *data)
 {
     wprintf(L"S %d %d: Element start (%p) <%s ...\n", _state, _good_state, data, ElementName);
@@ -137,11 +167,12 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
             {
                 if (wcscmp(ElementName, L"part") == 0)
                 {
-                    p->details_cnt++;
-                    p->details = (DETAIL_DEF_T*)realloc(p->details, sizeof(DETAIL_DEF_T)*p->details_cnt);
+                    DETAIL_DEF_T *d = _add_detail();
+                    if (d == NULL)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
 
-                    DETAIL_DEF_T *d = &p->details[p->details_cnt-1];
-                    memset(d, 0, sizeof(DETAIL_DEF_T));
                     _detail_state = DETAIL_ATTR;
 
                     for (size_t i = 0 ; i < 6; i++)
@@ -188,16 +219,11 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
         case STATE_DETAILS:
             if (wcscmp(ElementName, L"detail") == 0)
             {
-
-                p->details_cnt++;
-                p->details = (DETAIL_DEF_T*)realloc(p->details, sizeof(DETAIL_DEF_T)*p->details_cnt);
-                if (p->details == NULL)
+                DETAIL_DEF_T *d = _add_detail();
+                if (d == NULL)
                 {
                     PARSE_FAIL(E_ABORT);
                 }
-
-                DETAIL_DEF_T *d = &p->details[p->details_cnt-1];
-                memset(d, 0, sizeof(DETAIL_DEF_T));
 
                 _detail_state = DETAIL_ATTR;
 
@@ -474,9 +500,35 @@ static HRESULT _parse_good(const WCHAR* ElementName,
             {
                 _good_state = GOOD_BAND;
             }
+            else if (wcscmp(Value, L"sheet") == 0)
+            {
+                _good_state = GOOD_SHEET;
+
+                p->materials_cnt++;
+                p->materials = (MATERIAL_DEF_T*)realloc(p->materials, sizeof(MATERIAL_DEF_T)*p->materials_cnt);
+                if (p->materials == NULL)
+                {
+                    PARSE_FAIL(E_ABORT);
+                }
+
+                MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];
+                m->type = TYPE_SHEET;
+            }
             else
             {
                 return S_FALSE;
+            }
+        }
+        else if (_good_state == GOOD_SHEET)
+        {
+            if (wcscmp(LocalName, L"t") == 0)
+            {
+                MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];
+                m->thickness = _wtof(Value);
+                if (m->thickness <= 0.0)
+                {
+                    PARSE_FAIL(E_ABORT);
+                }
             }
         }
     }
