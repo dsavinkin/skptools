@@ -867,8 +867,8 @@ int write_new_model(const WCHAR *model_filename)
         MATERIAL_DEF_T *m = SUmaterials[i].mdef;
         SUMaterialRef *mref_ptr = &SUmaterials[i].mref;
 
-        printf("material %zd: type=%d, thickness=%.1f\n", i+1,
-               m->type, m->thickness);
+        printf("material %zd: type=%d, id=%d, thickness=%.1f\n", i+1,
+               m->type, m->id, m->thickness);
 
         if (m->type == TYPE_BAND)
         {

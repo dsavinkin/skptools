@@ -499,6 +499,16 @@ static HRESULT _parse_good(const WCHAR* ElementName,
             else if (wcscmp(Value, L"band") == 0)
             {
                 _good_state = GOOD_BAND;
+
+                p->materials_cnt++;
+                p->materials = (MATERIAL_DEF_T*)realloc(p->materials, sizeof(MATERIAL_DEF_T)*p->materials_cnt);
+                if (p->materials == NULL)
+                {
+                    PARSE_FAIL(E_ABORT);
+                }
+
+                MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];
+                m->type = TYPE_BAND;
             }
             else if (wcscmp(Value, L"sheet") == 0)
             {
@@ -519,13 +529,22 @@ static HRESULT _parse_good(const WCHAR* ElementName,
                 return S_FALSE;
             }
         }
-        else if (_good_state == GOOD_SHEET)
+        else if ((_good_state == GOOD_SHEET) || (_good_state == GOOD_BAND))
         {
             if (wcscmp(LocalName, L"t") == 0)
             {
                 MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];
                 m->thickness = _wtof(Value);
                 if (m->thickness <= 0.0)
+                {
+                    PARSE_FAIL(E_ABORT);
+                }
+            }
+            else if (wcscmp(LocalName, L"id") == 0)
+            {
+                MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];
+                m->id = _wtol(Value);
+                if (m->id <= 0)
                 {
                     PARSE_FAIL(E_ABORT);
                 }
