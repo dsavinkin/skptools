@@ -13,6 +13,9 @@
 
 typedef enum {
     TYPE_OP_UNDEFINED,
+    TYPE_CUTTING,
+    TYPE_EDGING,
+    TYPE_XNC,
     TYPE_DRILLING,
     TYPE_RABBETING,
     TYPE_SHAPEBYPATTERN,
@@ -41,6 +44,12 @@ typedef struct {
     //WCHAR *subtype;
     int subtype;
 } OPERATION_T;
+
+typedef struct {
+    OPERATION_TYPE_T type;
+    int id;
+    int material_id;
+} OPERATION_DEF_T;
 
 typedef struct {
     int id;
@@ -72,8 +81,10 @@ typedef struct {
 typedef struct {
     MATERIAL_DEF_T *materials; //dynamic array
     DETAIL_DEF_T *details; //dynamic array
-    int materials_cnt;
+    OPERATION_DEF_T *operations; //dynamic array
     int details_cnt;
+    int materials_cnt;
+    int operations_cnt;
 } VIYAR_PROJECT_T;
 
 /***************************************************************/

@@ -39,6 +39,12 @@ typedef enum {
 } GOOD_STATE_T;
 
 typedef enum {
+    OPERATION_NONE = 0,
+    OPERATION_MATERIAL,
+    OPERATION_PART,
+} OPERATION_STATE_T;
+
+typedef enum {
     MODEL_NONE,
     MODEL_OPENED,
     MODEL_CLOSED,
@@ -78,6 +84,7 @@ static STATE_T _state = STATE_ROOT;
 static MODEL_STATE_T _model_state = MODEL_NONE;
 static DETAIL_STATE_T _detail_state = DETAIL_ATTR;
 static GOOD_STATE_T _good_state = GOOD_NONE;
+static OPERATION_STATE_T _operation_state = OPERATION_NONE;
 
 DETAIL_DEF_T tmp_detail;
 
@@ -93,6 +100,81 @@ static HRESULT _model_save_close()
 {
     wprintf(L"TODO: save/close Model\n");
     return S_OK;
+}
+
+static DETAIL_DEF_T *_get_detail(int id)
+{
+    if ((p->details_cnt == 0) || (p->details == NULL))
+    {
+        return NULL;
+    }
+
+    if (id == 0)
+    {
+        //return the lastest
+        return &p->details[p->details_cnt-1];
+    }
+
+    for (int i = 0; i < p->details_cnt; i++)
+    {
+        DETAIL_DEF_T *d = &p->details[i];
+        if (d->id == id)
+        {
+            return d;
+        }
+    }
+
+    return NULL;
+}
+
+static MATERIAL_DEF_T *_get_material(int id)
+{
+    if ((p->materials_cnt == 0) || (p->materials == NULL))
+    {
+        return NULL;
+    }
+
+    if (id == 0)
+    {
+        //return the lastest
+        return &p->materials[p->materials_cnt-1];
+    }
+
+    for (int i = 0; i < p->materials_cnt; i++)
+    {
+        MATERIAL_DEF_T *m = &p->materials[i];
+        if (m->id == id)
+        {
+            return m;
+        }
+    }
+
+    return NULL;
+}
+
+static OPERATION_DEF_T *_get_operation(int id)
+{
+    if ((p->operations_cnt == 0) || (p->operations == NULL))
+    {
+        return NULL;
+    }
+
+    if (id == 0)
+    {
+        //return the lastest
+        return &p->operations[p->operations_cnt-1];
+    }
+
+    for (int i = 0; i < p->operations_cnt; i++)
+    {
+        OPERATION_DEF_T *o = &p->operations[i];
+        if (o->id == id)
+        {
+            return o;
+        }
+    }
+
+    return NULL;
 }
 
 static DETAIL_DEF_T *_add_detail()
@@ -119,10 +201,25 @@ static MATERIAL_DEF_T *_add_material()
         return NULL;
     }
 
-    MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];;
+    MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];
     memset(m, 0, sizeof(MATERIAL_DEF_T));
 
     return m;
+}
+
+static OPERATION_DEF_T *_add_operation()
+{
+    p->operations_cnt++;
+    p->operations = (OPERATION_DEF_T*)realloc(p->operations, sizeof(OPERATION_DEF_T)*p->operations_cnt);
+    if (p->operations == NULL)
+    {
+        return NULL;
+    }
+
+    OPERATION_DEF_T *o = &p->operations[p->operations_cnt-1];
+    memset(o, 0, sizeof(OPERATION_DEF_T));
+
+    return o;
 }
 
 static HRESULT _element_start(const WCHAR* ElementName, void *data)
@@ -155,6 +252,8 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                     PARSE_FAIL(E_ABORT);
                 }
                 _state = STATE_OPERATION;
+
+                _add_operation();
             }
             else
             {
@@ -198,15 +297,11 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
         case STATE_MATERIALS:
             if (wcscmp(ElementName, L"material") == 0)
             {
-                p->materials_cnt++;
-                p->materials = (MATERIAL_DEF_T*)realloc(p->materials, sizeof(MATERIAL_DEF_T)*p->materials_cnt);
-                if (p->materials == NULL)
+                MATERIAL_DEF_T *m = _add_material();
+                if (m == NULL)
                 {
                     PARSE_FAIL(E_ABORT);
                 }
-
-                MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];
-                memset(m, 0, sizeof(MATERIAL_DEF_T));
 
                 //wprintf(L"TODO: (%d) start adding material\n", _materials_cnt);
             }
@@ -263,7 +358,11 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                         PARSE_FAIL(E_ABORT);
                     }
 
-                    DETAIL_DEF_T *d = &p->details[p->details_cnt-1];
+                    DETAIL_DEF_T *d = _get_detail(0);
+                    if (d == NULL)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
 
                     d->operations_cnt++;
                     d->operations = (OPERATION_T*)realloc(d->operations, sizeof(OPERATION_T)*d->operations_cnt);
@@ -338,22 +437,22 @@ static HRESULT _parse_declaration(const WCHAR* ElementName,
     return S_OK;
 }
 
+#if 0
 static HRESULT _parse_material(const WCHAR* ElementName,
                                const WCHAR* LocalName,
                                const WCHAR* Value,
                                void *data)
 {
-    if (p->materials_cnt < 1)
-    {
-        PARSE_FAIL(E_ABORT);
-    }
-
     if (wcscmp(ElementName, L"material") != 0)
     {
         return S_FALSE;
     }
 
-    MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];
+    MATERIAL_DEF_T *m = _get_material(0);
+    if (m == NULL)
+    {
+        PARSE_FAIL(E_ABORT);
+    }
 
     if (wcscmp(LocalName, L"id") == 0)
     {
@@ -408,6 +507,7 @@ static HRESULT _parse_material(const WCHAR* ElementName,
 
     return S_OK;
 }
+#endif
 
 static HRESULT _parse_project(const WCHAR* ElementName,
                               const WCHAR* LocalName,
@@ -422,12 +522,11 @@ static HRESULT _parse_product_part(const WCHAR* ElementName,
                                    const WCHAR* Value,
                                    void *data)
 {
-    if (p->details_cnt < 1)
+    DETAIL_DEF_T *d = _get_detail(0);
+    if (d == NULL)
     {
         PARSE_FAIL(E_ABORT);
     }
-
-    DETAIL_DEF_T *d = &p->details[p->details_cnt-1];
 
     if (wcscmp(LocalName, L"id") == 0)
     {
@@ -482,73 +581,82 @@ static HRESULT _parse_good(const WCHAR* ElementName,
 {
     if (wcscmp(ElementName, L"good") == 0)
     {
-        if (wcscmp(LocalName, L"typeId") == 0)
+        switch (_good_state)
         {
-            if (wcscmp(Value, L"product") == 0)
-            {
-                _good_state = GOOD_PRODUCT;
-            }
-            else if (wcscmp(Value, L"tool.edgeline") == 0)
-            {
-                _good_state = GOOD_TOOL_EDGELINE;
-            }
-            else if (wcscmp(Value, L"tool.cutting") == 0)
-            {
-                _good_state = GOOD_TOOL_CUTTING;
-            }
-            else if (wcscmp(Value, L"band") == 0)
-            {
-                _good_state = GOOD_BAND;
-
-                p->materials_cnt++;
-                p->materials = (MATERIAL_DEF_T*)realloc(p->materials, sizeof(MATERIAL_DEF_T)*p->materials_cnt);
-                if (p->materials == NULL)
+            case GOOD_NONE:
+                if (wcscmp(LocalName, L"typeId") == 0)
                 {
-                    PARSE_FAIL(E_ABORT);
-                }
+                    if (wcscmp(Value, L"product") == 0)
+                    {
+                        _good_state = GOOD_PRODUCT;
+                    }
+                    else if (wcscmp(Value, L"tool.edgeline") == 0)
+                    {
+                        _good_state = GOOD_TOOL_EDGELINE;
+                    }
+                    else if (wcscmp(Value, L"tool.cutting") == 0)
+                    {
+                        _good_state = GOOD_TOOL_CUTTING;
+                    }
+                    else if (wcscmp(Value, L"band") == 0)
+                    {
+                        _good_state = GOOD_BAND;
+                        MATERIAL_DEF_T *m = _add_material();
+                        if (m == NULL)
+                        {
+                            PARSE_FAIL(E_ABORT);
+                        }
 
-                MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];
-                m->type = TYPE_BAND;
-            }
-            else if (wcscmp(Value, L"sheet") == 0)
-            {
-                _good_state = GOOD_SHEET;
+                        m->type = TYPE_BAND;
+                    }
+                    else if (wcscmp(Value, L"sheet") == 0)
+                    {
+                        _good_state = GOOD_SHEET;
+                        MATERIAL_DEF_T *m = _add_material();
+                        if (m == NULL)
+                        {
+                            PARSE_FAIL(E_ABORT);
+                        }
 
-                p->materials_cnt++;
-                p->materials = (MATERIAL_DEF_T*)realloc(p->materials, sizeof(MATERIAL_DEF_T)*p->materials_cnt);
-                if (p->materials == NULL)
-                {
-                    PARSE_FAIL(E_ABORT);
+                        m->type = TYPE_SHEET;
+                    }
+                    else
+                    {
+                        return S_FALSE;
+                    }
                 }
+                break;
 
-                MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];
-                m->type = TYPE_SHEET;
-            }
-            else
-            {
-                return S_FALSE;
-            }
-        }
-        else if ((_good_state == GOOD_SHEET) || (_good_state == GOOD_BAND))
-        {
-            if (wcscmp(LocalName, L"t") == 0)
-            {
-                MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];
-                m->thickness = _wtof(Value);
-                if (m->thickness <= 0.0)
+            case GOOD_SHEET:
+            case GOOD_BAND:
+                if (wcscmp(LocalName, L"t") == 0)
                 {
-                    PARSE_FAIL(E_ABORT);
+                    MATERIAL_DEF_T *m = _get_material(0);
+                    if (m == NULL)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+
+                    m->thickness = _wtof(Value);
+                    if (m->thickness <= 0.0)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
                 }
-            }
-            else if (wcscmp(LocalName, L"id") == 0)
-            {
-                MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];
-                m->id = _wtol(Value);
-                if (m->id <= 0)
+                else if (wcscmp(LocalName, L"id") == 0)
                 {
-                    PARSE_FAIL(E_ABORT);
+                    MATERIAL_DEF_T *m = _get_material(0);
+                    if (m == NULL)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
+
+                    m->id = _wtol(Value);
+                    if (m->id <= 0)
+                    {
+                        PARSE_FAIL(E_ABORT);
+                    }
                 }
-            }
         }
     }
     else if (wcscmp(ElementName, L"part") == 0)
@@ -567,6 +675,12 @@ static HRESULT _parse_operation(const WCHAR* ElementName,
                                 const WCHAR* Value,
                                 void *data)
 {
+    OPERATION_DEF_T *o = _get_operation(0);
+    if (o == NULL)
+    {
+        PARSE_FAIL(E_ABORT);
+    }
+
     if (wcscmp(ElementName, L"operation") == 0)
     {
         if (wcscmp(LocalName, L"typeId") == 0)
@@ -574,18 +688,41 @@ static HRESULT _parse_operation(const WCHAR* ElementName,
             if (wcscmp(Value, L"CS") == 0)
             {
                 //Cutting
+                o->type = TYPE_CUTTING;
+
             }
             else if (wcscmp(Value, L"EL") == 0)
             {
                 //band
+                o->type = TYPE_EDGING;
             }
             else if (wcscmp(Value, L"XNC") == 0)
             {
                 //Drill/mill
+                o->type = TYPE_XNC;
             }
             else
             {
                 return S_FALSE;
+            }
+        }
+        else if (wcscmp(LocalName, L"id") == 0)
+        {
+            o->id = _wtol(Value);
+            if (o->id <= 0)
+            {
+                PARSE_FAIL(E_ABORT);
+            }
+        }
+    }
+    else if (wcscmp(ElementName, L"material") == 0)
+    {
+        if (wcscmp(LocalName, L"id") == 0)
+        {
+            o->material_id = _wtol(Value);
+            if (o->material_id <= 0)
+            {
+                PARSE_FAIL(E_ABORT);
             }
         }
     }
@@ -593,6 +730,7 @@ static HRESULT _parse_operation(const WCHAR* ElementName,
     return S_OK;
 }
 
+#if 0
 static HRESULT _parse_detail(const WCHAR* ElementName,
                              const WCHAR* LocalName,
                              const WCHAR* Value,
@@ -604,12 +742,12 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
         return S_FALSE;
     }
 
-    if (p->details_cnt < 1)
+    DETAIL_DEF_T *d = _get_detail(0);
+    if (d == NULL)
     {
         PARSE_FAIL(E_ABORT);
     }
 
-    DETAIL_DEF_T *d = &p->details[p->details_cnt-1];
 
     //wprintf(L"detail %d:%d <%s: %s=\"%s\"> (%p)\n", _details_cnt, _detail_state, ElementName, LocalName, Value, data);
 
@@ -900,7 +1038,7 @@ static HRESULT _parse_detail(const WCHAR* ElementName,
 
     return S_OK;
 }
-
+#endif
 
 static HRESULT _parse_element(const WCHAR* ElementName,
                               const WCHAR* LocalName,

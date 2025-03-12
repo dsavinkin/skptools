@@ -973,8 +973,25 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
         SUmaterials[i].mdef = &project.materials[i];
     }
 
-    wprintf(L"_materials_cnt=%d, _details_cnt=%d\n", project.materials_cnt, project.details_cnt);
+    printf("_materials_cnt=%d, _details_cnt=%d, operations_cnt=%d\n", project.materials_cnt, project.details_cnt, project.operations_cnt);
+    for (int i = 0; i < project.operations_cnt; i++)
+    {
+        OPERATION_DEF_T *o = &project.operations[i];
+        printf("operation %d: id=%d, type=%d, material_id=%d\n", i, o->id, o->type, o->material_id);
+    }
 
+    for (int i = 0; i < SUmaterials_cnt; i++)
+    {
+        MATERIAL_DEF_T *m = SUmaterials[i].mdef;
+        SUMaterialRef *mref_ptr = &SUmaterials[i].mref;
+
+        printf("material %d: type=%d, id=%d, thickness=%.1f\n",
+               i, m->type, m->id, m->thickness);
+    }
+
+#ifndef TODO
+    return 0;
+#endif
     drill_init();
 
     int res = write_new_model(argv[2]);
