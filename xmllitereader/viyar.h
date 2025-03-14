@@ -49,19 +49,22 @@ typedef struct {
     OPERATION_TYPE_T type;
     int id;
     int material_id;
+    int parts_cnt;
+    int *parts;
 } OPERATION_DEF_T;
 
 typedef struct {
     int id;
     wchar_t *name;
-    int material_id;
+    //int material_id;
     double width;
     double height;
     double thickness;
-    int multiplicity;
-    int grain;
+    int m_el[6];
+    //int multiplicity;
+    //int grain;
     size_t amount;
-    int m_bands[6];
+    int m_bands[6]; //material indexes in material array
     size_t operations_cnt;
     OPERATION_T *operations; //dynamic array
 } DETAIL_DEF_T;

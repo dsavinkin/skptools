@@ -120,7 +120,8 @@ void _dump_detail(DETAIL_DEF_T *d)
     printf("id:          %d\n", d->id);
     wprintf(L"name:        %s\n", d->name);
     printf("size:        %.1f/%.1f/%.1f\n", d->width, d->height, d->thickness);
-    printf("material_id: %d, ", d->material_id);
+    //printf("material_id: %d\n", d->material_id);
+    printf("bands:       %d %d %d %d %d %d\n", d->m_bands[0], d->m_bands[1], d->m_bands[2], d->m_bands[3], d->m_bands[4], d->m_bands[5]);
     printf("amount:      %zd\n", d->amount);
 }
 
@@ -966,6 +967,7 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
     {
         return 1;
     }
+
     SUmaterials_cnt = project.materials_cnt;
     memset(SUmaterials, 0, project.materials_cnt * sizeof(SUmaterials[0]));
     for (size_t i = 0; i < SUmaterials_cnt; i++)
@@ -989,9 +991,11 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
                i, m->type, m->id, m->thickness);
     }
 
-#ifndef TODO
+#ifdef TODO
+    project_destroy(&project);
     return 0;
 #endif
+
     drill_init();
 
     int res = write_new_model(argv[2]);

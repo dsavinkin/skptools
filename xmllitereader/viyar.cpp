@@ -127,6 +127,20 @@ static DETAIL_DEF_T *_get_detail(int id)
     return NULL;
 }
 
+static int _get_material_idx(int id)
+{
+    for (int i = 0; i < p->materials_cnt; i++)
+    {
+        MATERIAL_DEF_T *m = &p->materials[i];
+        if (m->id == id)
+        {
+            return i + 1;
+        }
+    }
+
+    return 0;
+}
+
 static MATERIAL_DEF_T *_get_material(int id)
 {
     if ((p->materials_cnt == 0) || (p->materials == NULL))
@@ -276,7 +290,7 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
 
                     for (size_t i = 0 ; i < 6; i++)
                     {
-                        //Set default material for all bands = material 1
+                        //FIXME: for now set default material for all bands = material 1
                         d->m_bands[i] = 1;
                     }
 
@@ -517,6 +531,20 @@ static HRESULT _parse_project(const WCHAR* ElementName,
     return S_OK;
 }
 
+static int _parse_el(const WCHAR* Value)
+{
+    int id = 0;
+#define CMPSTR L"@operation#"
+    // The format is: "@operation#3"
+    if (wcsncmp(Value, CMPSTR, wcslen(CMPSTR)) == 0)
+    {
+        id = _wtol(&Value[wcslen(CMPSTR)]);
+    }
+#undef CMPSTR
+
+    return id;
+}
+
 static HRESULT _parse_product_part(const WCHAR* ElementName,
                                    const WCHAR* LocalName,
                                    const WCHAR* Value,
@@ -564,6 +592,22 @@ static HRESULT _parse_product_part(const WCHAR* ElementName,
             // set name for non-empty components only.
             d->name = _wcsdup(Value);
         }
+    }
+    else if (wcscmp(LocalName, L"elt") == 0)
+    {
+        d->m_el[SIDE_TOP] = _parse_el(Value);
+    }
+    else if (wcscmp(LocalName, L"elb") == 0)
+    {
+        d->m_el[SIDE_BOTTOM] = _parse_el(Value);
+    }
+    else if (wcscmp(LocalName, L"ell") == 0)
+    {
+        d->m_el[SIDE_LEFT] = _parse_el(Value);
+    }
+    else if (wcscmp(LocalName, L"elr") == 0)
+    {
+        d->m_el[SIDE_RIGHT] = _parse_el(Value);
     }
     else
     {
@@ -1289,13 +1333,52 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
         }
     }
 
-#if 0
+
+    //TODO:
+    // - get cutting operation
+    // - set material_id to all bands of corresponding detail
+    // - just need to set all elements of m_el to sheet's material_id
+    // !! first need to parse parts list for this operation
+
+    for (size_t i = 0; i < p->operations_cnt; i++)
+    {
+    }
+
+    // TODO: looks like bands are side-reversed
+
     for (size_t i = 0; i < p->details_cnt; i++)
     {
+        DETAIL_DEF_T *d = &p->details[i];
+
+        for (int j = 0; j < 6; j++)
+        {
+            if (d->m_el[j] > 0)
+            {
+                OPERATION_DEF_T *o = _get_operation(d->m_el[j]);
+                if (o != NULL)
+                {
+                    d->m_bands[j] = _get_material_idx(o->material_id);
+                    printf("el[%d]=%d, material_id = %d, idx=%d\n", j, d->m_el[j], o->material_id, d->m_bands[j]);
+                }
+
+                if (d->m_bands[j] <= 0)
+                {
+                    hr = !S_OK;
+                    HR(hr);
+                }
+            }
+            else
+            {
+                //TODO: set sheet band material to this band
+            }
+        }
+
+#if 1
         printf("Detail %zd:\n", i);
-        _dump_detail(&details[i]);
-    }
+        _dump_detail(&p->details[i]);
 #endif
+    }
+
     hr = S_OK;
 
     CHKHR(_model_state == MODEL_CLOSED ? S_OK : E_ABORT);
@@ -1318,5 +1401,12 @@ void project_destroy(VIYAR_PROJECT_T *project)
 {
     free(project->materials);
     free(project->details);
+
+    for (int i = 0 ; i < project->operations_cnt; i++)
+    {
+        free(project->operations[i].parts);
+    }
+
+    free(project->operations);
     memset(project, 0, sizeof(*project));
 }
