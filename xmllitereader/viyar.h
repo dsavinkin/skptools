@@ -6,6 +6,9 @@
 /*                     Global Definitions                      */
 /***************************************************************/
 
+#define CHKHR(stmt)             do { hr = (stmt); if (FAILED(hr)) { printf("HR line %s:%d\n", __FILE__, __LINE__); goto CleanUp; }} while(0)
+#define HR(stmt)                do { hr = (stmt); printf("HR line %s:%d\n", __FILE__, __LINE__);goto CleanUp; } while(0)
+#define SAFE_RELEASE(I)         do { if (I){ I->Release(); } I = NULL; } while(0)
 
 /***************************************************************/
 /*                       Global Types                          */
@@ -55,6 +58,7 @@ typedef struct {
     int material_id;
     int parts_cnt;
     PART_DEF_T *parts;
+    wchar_t *program;
 } OPERATION_DEF_T;
 
 typedef struct {
@@ -86,12 +90,70 @@ typedef struct {
 } MATERIAL_DEF_T;
 
 typedef struct {
+    wchar_t *name;
+    double d;
+} TOOL_DEF_T;
+
+typedef struct {
+    int ver;
+    int side;
+    wchar_t *name;
+    wchar_t *str_x;
+    wchar_t *str_y;
+    wchar_t *str_dp;
+    wchar_t *str_as;
+
+    double x;
+    double y;
+    double dp;
+    double as;
+    int ac;
+    bool av;
+    bool m;
+} BORE_DEF_T;
+
+typedef struct {
+    //<ms x="0" y="2" dp="10" in="0" out="0" sxy="tool.dia/2" fwd="true" c="2" name="mill8"/>
+    wchar_t *str_x;
+    wchar_t *str_y;
+    wchar_t *str_dp;
+    wchar_t *str_sxy;
+    double x;
+    double y;
+    double dp;
+    double sxy;
+    bool fwd;
+    int c;
+    wchar_t *name;
+
+    //TODO: add array of trajectories
+    //<ml x="dx" y="3" dp="10"/>
+} MILL_DEF_T;
+
+typedef struct {
+    wchar_t *str_dx;
+    wchar_t *str_dy;
+    wchar_t *str_dz;
+    double dx;
+    double dy;
+    double dz;
+    TOOL_DEF_T *tools;
+    BORE_DEF_T *bores;
+    MILL_DEF_T *mills;
+    int tools_cnt;
+    int bores_cnt;
+    int mills_cnt;
+} PROGRAM_DEF_T;
+
+typedef struct {
     MATERIAL_DEF_T *materials; //dynamic array
     DETAIL_DEF_T *details; //dynamic array
     OPERATION_DEF_T *operations; //dynamic array
+    PROGRAM_DEF_T *programs;
     int details_cnt;
     int materials_cnt;
     int operations_cnt;
+    int programs_cnt;
 } VIYAR_PROJECT_T;
 
 /***************************************************************/
@@ -103,6 +165,7 @@ VIYAR_PROJECT_T project_init();
 void project_destroy(VIYAR_PROJECT_T *project);
 
 int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */);
+int project_process(VIYAR_PROJECT_T *project /* in_out */);
 
 void _dump_detail(DETAIL_DEF_T *d);
 

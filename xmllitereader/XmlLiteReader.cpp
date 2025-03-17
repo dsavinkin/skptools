@@ -970,6 +970,13 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
         return hr;
     }
 
+    hr = project_process(&project);
+    if (FAILED(hr))
+    {
+        project_destroy(&project);
+        return hr;
+    }
+
     SUmaterials = (SUMATERIAL_T*)malloc(project.materials_cnt * sizeof(SUmaterials[0]));
     if (SUmaterials == NULL)
     {
@@ -987,7 +994,19 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
     for (int i = 0; i < project.operations_cnt; i++)
     {
         OPERATION_DEF_T *o = &project.operations[i];
-        printf("operation %d: id=%d, type=%d, material_id=%d\n", i, o->id, o->type, o->material_id);
+        printf("operation %d: id=%d, type=%d, material_id=%d, program=%d\n", i, o->id, o->type, o->material_id, o->program ? 1 : 0);
+        printf(" - parts:");
+        for (int j = 0; j < o->parts_cnt; j++)
+        {
+            printf(" %d", o->parts[j].id);
+        }
+        printf("\n");
+#if 0
+        if (o->program != NULL)
+        {
+            wprintf(L"%s\n", o->program);
+        }
+#endif
     }
 
     for (int i = 0; i < SUmaterials_cnt; i++)

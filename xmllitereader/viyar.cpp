@@ -1,4 +1,5 @@
 #include "viyar.h"
+#include "xnc.h"
 
 #include <ole2.h>
 #include <xmllite.h>
@@ -10,9 +11,6 @@
 /***************************************************************/
 
 #pragma warning(disable : 4127)  // conditional expression is constant
-#define CHKHR(stmt)             do { hr = (stmt); if (FAILED(hr)) goto CleanUp; } while(0)
-#define HR(stmt)                do { hr = (stmt); printf("HR line %d\n", __LINE__);goto CleanUp; } while(0)
-#define SAFE_RELEASE(I)         do { if (I){ I->Release(); } I = NULL; } while(0)
 
 /***************************************************************/
 /*                       Local Types                           */
@@ -86,9 +84,7 @@ static DETAIL_STATE_T _detail_state = DETAIL_ATTR;
 static GOOD_STATE_T _good_state = GOOD_NONE;
 static OPERATION_STATE_T _operation_state = OPERATION_NONE;
 
-DETAIL_DEF_T tmp_detail;
-
-VIYAR_PROJECT_T *p = NULL;
+static VIYAR_PROJECT_T *p = NULL;
 
 static HRESULT _model_open_create()
 {
@@ -799,6 +795,10 @@ static HRESULT _parse_operation(const WCHAR* ElementName,
                 PARSE_FAIL(E_ABORT);
             }
         }
+        else if (wcscmp(LocalName, L"program") == 0)
+        {
+            o->program = _wcsdup(Value);
+        }
     }
     else if (wcscmp(ElementName, L"material") == 0)
     {
@@ -1167,7 +1167,7 @@ static HRESULT _parse_element(const WCHAR* ElementName,
     PARSE_FAIL(E_ABORT);
 }
 
-HRESULT WriteAttributes(IXmlReader* pReader, const WCHAR* ElementName, attribute_cb cb, void *data)
+static HRESULT WriteAttributes(IXmlReader* pReader, const WCHAR* ElementName, attribute_cb cb, void *data)
 {
     const WCHAR* pwszPrefix;
     const WCHAR* pwszLocalName;
@@ -1187,7 +1187,7 @@ HRESULT WriteAttributes(IXmlReader* pReader, const WCHAR* ElementName, attribute
         return hr;
     if (S_OK != hr)
     {
-        wprintf(L"Error moving to first attribute, error is %08.8lx", hr);
+        wprintf(L"Error moving to first attribute, error is %08.8lx\n", hr);
         return hr;
     }
     else
@@ -1199,17 +1199,17 @@ HRESULT WriteAttributes(IXmlReader* pReader, const WCHAR* ElementName, attribute
                 UINT cwchPrefix;
                 if (FAILED(hr = pReader->GetPrefix(&pwszPrefix, &cwchPrefix)))
                 {
-                    wprintf(L"Error getting prefix, error is %08.8lx", hr);
+                    wprintf(L"Error getting prefix, error is %08.8lx\n", hr);
                     return hr;
                 }
                 if (FAILED(hr = pReader->GetLocalName(&pwszLocalName, NULL)))
                 {
-                    wprintf(L"Error getting local name, error is %08.8lx", hr);
+                    wprintf(L"Error getting local name, error is %08.8lx\n", hr);
                     return hr;
                 }
                 if (FAILED(hr = pReader->GetValue(&pwszValue, NULL)))
                 {
-                    wprintf(L"Error getting value, error is %08.8lx", hr);
+                    wprintf(L"Error getting value, error is %08.8lx\n", hr);
                     return hr;
                 }
                 /*
@@ -1249,32 +1249,32 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
     //Open read-only input stream
     if (FAILED(hr = SHCreateStreamOnFile(xmlfilename, STGM_READ, &pFileStream)))
     {
-        wprintf(L"Error creating file reader, error is %08.8lx", hr);
+        wprintf(L"Error creating file reader, error is %08.8lx\n", hr);
         HR(hr);
     }
 
     if (FAILED(hr = CreateXmlReader(__uuidof(IXmlReader), (void**) &pReader, NULL)))
     {
-        wprintf(L"Error creating xml reader, error is %08.8lx", hr);
+        wprintf(L"Error creating xml reader, error is %08.8lx\n", hr);
         HR(hr);
     }
 
     if (FAILED(hr = CreateXmlReaderInputWithEncodingName(pFileStream, nullptr, L"UTF-8", FALSE,
                     L"c:\temp", &xmlReaderInput)))
     {
-        wprintf(L"Error creating xml reader with encoding code page, error is %08.8lx", hr);
+        wprintf(L"Error creating xml reader with encoding code page, error is %08.8lx\n", hr);
         HR(hr);
     }
 
     if (FAILED(hr = pReader->SetProperty(XmlReaderProperty_DtdProcessing, DtdProcessing_Prohibit)))
     {
-        wprintf(L"Error setting XmlReaderProperty_DtdProcessing, error is %08.8lx", hr);
+        wprintf(L"Error setting XmlReaderProperty_DtdProcessing, error is %08.8lx\n", hr);
         HR(hr);
     }
 
     if (FAILED(hr = pReader->SetInput(xmlReaderInput)))
     {
-        wprintf(L"Error setting input for reader, error is %08.8lx", hr);
+        wprintf(L"Error setting input for reader, error is %08.8lx\n", hr);
         HR(hr);
     }
 
@@ -1289,19 +1289,19 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
                 wprintf(L"XmlDeclaration\n");
                 if (FAILED(hr = WriteAttributes(pReader, L"Declaration", _parse_declaration, NULL)))
                 {
-                    wprintf(L"Error writing attributes, error is %08.8lx", hr);
+                    wprintf(L"Error writing attributes, error is %08.8lx\n", hr);
                     HR(hr);
                 }
                 break;
             case XmlNodeType_Element:
                 if (FAILED(hr = pReader->GetPrefix(&pwszPrefix, &cwchPrefix)))
                 {
-                    wprintf(L"Error getting prefix, error is %08.8lx", hr);
+                    wprintf(L"Error getting prefix, error is %08.8lx\n", hr);
                     HR(hr);
                 }
                 if (FAILED(hr = pReader->GetLocalName(&pwszLocalName, NULL)))
                 {
-                    wprintf(L"Error getting local name, error is %08.8lx", hr);
+                    wprintf(L"Error getting local name, error is %08.8lx\n", hr);
                     HR(hr);
                 }
                 /*
@@ -1316,7 +1316,7 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
 
                 if (FAILED(hr = WriteAttributes(pReader, pwszLocalName, _parse_element, NULL)))
                 {
-                    wprintf(L"Error writing attributes, error is %08.8lx", hr);
+                    wprintf(L"Error writing attributes, error is %08.8lx\n", hr);
                     HR(hr);
                 }
 
@@ -1330,12 +1330,12 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
             case XmlNodeType_EndElement:
                 if (FAILED(hr = pReader->GetPrefix(&pwszPrefix, &cwchPrefix)))
                 {
-                    wprintf(L"Error getting prefix, error is %08.8lx", hr);
+                    wprintf(L"Error getting prefix, error is %08.8lx\n", hr);
                     HR(hr);
                 }
                 if (FAILED(hr = pReader->GetLocalName(&pwszLocalName, NULL)))
                 {
-                    wprintf(L"Error getting local name, error is %08.8lx", hr);
+                    wprintf(L"Error getting local name, error is %08.8lx\n", hr);
                     HR(hr);
                 }
                 /*
@@ -1351,7 +1351,7 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
             case XmlNodeType_Whitespace:
                 if (FAILED(hr = pReader->GetValue(&pwszValue, NULL)))
                 {
-                    wprintf(L"Error getting value, error is %08.8lx", hr);
+                    wprintf(L"Error getting value, error is %08.8lx\n", hr);
                     HR(hr);
                 }
                 //wprintf(L"Text: >%s<\n", pwszValue);
@@ -1359,7 +1359,7 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
             case XmlNodeType_CDATA:
                 if (FAILED(hr = pReader->GetValue(&pwszValue, NULL)))
                 {
-                    wprintf(L"Error getting value, error is %08.8lx", hr);
+                    wprintf(L"Error getting value, error is %08.8lx\n", hr);
                     HR(hr);
                 }
                 wprintf(L"CDATA: %s\n", pwszValue);
@@ -1367,12 +1367,12 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
             case XmlNodeType_ProcessingInstruction:
                 if (FAILED(hr = pReader->GetLocalName(&pwszLocalName, NULL)))
                 {
-                    wprintf(L"Error getting name, error is %08.8lx", hr);
+                    wprintf(L"Error getting name, error is %08.8lx\n", hr);
                     HR(hr);
                 }
                 if (FAILED(hr = pReader->GetValue(&pwszValue, NULL)))
                 {
-                    wprintf(L"Error getting value, error is %08.8lx", hr);
+                    wprintf(L"Error getting value, error is %08.8lx\n", hr);
                     HR(hr);
                 }
                 wprintf(L"Processing Instruction name:%s value:%s\n", pwszLocalName, pwszValue);
@@ -1380,7 +1380,7 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
             case XmlNodeType_Comment:
                 if (FAILED(hr = pReader->GetValue(&pwszValue, NULL)))
                 {
-                    wprintf(L"Error getting value, error is %08.8lx", hr);
+                    wprintf(L"Error getting value, error is %08.8lx\n", hr);
                     HR(hr);
                 }
                 wprintf(L"Comment: %s\n", pwszValue);
@@ -1391,12 +1391,22 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
         }
     }
 
+    hr = S_OK;
 
-    //TODO:
-    // - get cutting operation
-    // - set material_id to all bands of corresponding detail
-    // - just need to set all elements of m_el to sheet's material_id
-    // !! first need to parse parts list for this operation
+    CHKHR(_model_state == MODEL_CLOSED ? S_OK : E_ABORT);
+
+CleanUp:
+    SAFE_RELEASE(pFileStream);
+    SAFE_RELEASE(pReader);
+    return hr;
+
+}
+
+int project_process(VIYAR_PROJECT_T *project /* in_out */)
+{
+    HRESULT hr = S_OK;
+
+    VIYAR_PROJECT_T *p = project;
 
     for (size_t i = 0; i < p->operations_cnt; i++)
     {
@@ -1427,6 +1437,21 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
                 }
             }
         }
+        else if (o->type == TYPE_XNC)
+        {
+            if (o->program == NULL)
+            {
+                printf("Empty XNC program\n");
+                continue;
+            }
+
+            hr = parse_xml_program(o->program, p);
+            if (FAILED(hr))
+            {
+                HR(hr);
+                goto CleanUp;
+            }
+        }
     }
 
     // TODO: looks like bands are side-reversed
@@ -1454,12 +1479,14 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
                     d->m_bands[j] = _get_material_idx(o->material_id);
                     printf("el[%d]=%d, material_id = %d, idx=%d\n", j, d->m_el[j], o->material_id, d->m_bands[j]);
                 }
+            }
 
-                if (d->m_bands[j] <= 0)
-                {
-                    hr = !S_OK;
-                    HR(hr);
-                }
+
+            if (d->m_bands[j] <= 0)
+            {
+                hr = E_ABORT;
+                HR(hr);
+                goto CleanUp;
             }
         }
 
@@ -1470,14 +1497,9 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
     }
 
     hr = S_OK;
-
-    CHKHR(_model_state == MODEL_CLOSED ? S_OK : E_ABORT);
-
 CleanUp:
-    SAFE_RELEASE(pFileStream);
-    SAFE_RELEASE(pReader);
-    return hr;
 
+    return hr;
 }
 
 VIYAR_PROJECT_T project_init()
@@ -1495,8 +1517,18 @@ void project_destroy(VIYAR_PROJECT_T *project)
     for (int i = 0 ; i < project->operations_cnt; i++)
     {
         free(project->operations[i].parts);
+        free(project->operations[i].program);
+    }
+
+    for (int i = 0 ; i < project->programs_cnt; i++)
+    {
+        free(project->programs[i].tools); //TODO: free names and other wchar_t*
+        free(project->programs[i].bores); //TODO: free names and other wchar_t*
+        //TODO: go to mills and free inside
+        free(project->programs[i].mills); //TODO: free names and other wchar_t*
     }
 
     free(project->operations);
+    free(project->programs);
     memset(project, 0, sizeof(*project));
 }

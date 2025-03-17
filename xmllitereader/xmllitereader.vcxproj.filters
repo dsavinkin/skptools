@@ -27,6 +27,9 @@
     <ClCompile Include="common.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="xnc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="drill.h">
@@ -36,6 +39,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="viyar.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="xnc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
