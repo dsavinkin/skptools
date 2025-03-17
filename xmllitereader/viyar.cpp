@@ -560,7 +560,7 @@ static HRESULT _parse_product_part(const WCHAR* ElementName,
     {
         d->id = _wtol(Value);
     }
-    else if (wcscmp(LocalName, L"dw") == 0)
+    else if (wcscmp(LocalName, L"dl") == 0)
     {
         d->width = _wtof(Value);
         if (d->width <= 0.0)
@@ -568,7 +568,7 @@ static HRESULT _parse_product_part(const WCHAR* ElementName,
             PARSE_FAIL(E_ABORT);
         }
     }
-    else if (wcscmp(LocalName, L"dl") == 0)
+    else if (wcscmp(LocalName, L"dw") == 0)
     {
         d->height = _wtof(Value);
         if (d->height <= 0.0)
