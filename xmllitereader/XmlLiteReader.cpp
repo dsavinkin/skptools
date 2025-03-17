@@ -354,7 +354,6 @@ static int _corner_operation(SUPoint3D points[12], int *band_materials, size_t *
 
 static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
 {
-
     //End coordinates of detail in INCHES
     double X = (d->width);
     double Y = (d->height);
@@ -453,6 +452,15 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
 
     int band_materials[12]; //material index corresponds to the starting point of sheet_points
     memset(band_materials, 0, sizeof(band_materials));
+
+    for (size_t j = 0 ; j < 6 ; j++)
+    {
+        if (d->m_bands[j] <= 0)
+        {
+            printf("m_bands[%zu] == %d, skip detail\n", j, d->m_bands[j]);
+            return -1;
+        }
+    }
 
     SUMaterialRef material = SU_INVALID;
     if (d->m_bands[SIDE_FRONT])

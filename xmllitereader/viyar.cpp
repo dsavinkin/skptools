@@ -191,6 +191,51 @@ static OPERATION_DEF_T *_get_operation(int id)
     return NULL;
 }
 
+static PART_DEF_T *_get_operation_part(OPERATION_DEF_T *o, int id)
+{
+    if ((o == NULL) || (o->parts_cnt == 0) || (o->parts == NULL))
+    {
+        return NULL;
+    }
+
+    if (id == 0)
+    {
+        //return the lastest
+        return &o->parts[o->parts_cnt-1];
+    }
+
+    for (int i = 0; i < o->parts_cnt; i++)
+    {
+        if (o->parts[i].id == id)
+        {
+            return &o->parts[i];
+        }
+    }
+
+    return NULL;
+}
+
+static PART_DEF_T *_add_operation_part(OPERATION_DEF_T *o)
+{
+    if (o == NULL)
+    {
+        return NULL;
+    }
+
+    o->parts_cnt++;
+    o->parts = (PART_DEF_T*)realloc(o->parts, sizeof(PART_DEF_T)*o->parts_cnt);
+    if (o->parts == NULL)
+    {
+        return NULL;
+    }
+
+    PART_DEF_T *p = &o->parts[o->parts_cnt-1];
+
+    memset(p, 0, sizeof(PART_DEF_T));
+
+    return p;
+}
+
 static DETAIL_DEF_T *_add_detail()
 {
     p->details_cnt++;
@@ -287,13 +332,6 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
                     }
 
                     _detail_state = DETAIL_ATTR;
-
-                    for (size_t i = 0 ; i < 6; i++)
-                    {
-                        //FIXME: for now set default material for all bands = material 1
-                        d->m_bands[i] = 1;
-                    }
-
                 }
             }
             break;
@@ -301,9 +339,17 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
         case STATE_OPERATION:
             if (wcscmp(ElementName, L"material") == 0)
             {
+                //skip it - no information inside, no action required
             }
             else if (wcscmp(ElementName, L"part") == 0)
             {
+                OPERATION_DEF_T *o = _get_operation(0);
+                if (o == NULL)
+                {
+                    PARSE_FAIL(E_ABORT);
+                }
+
+                _add_operation_part(o);
             }
             break;
 
@@ -609,11 +655,6 @@ static HRESULT _parse_product_part(const WCHAR* ElementName,
     {
         d->m_el[SIDE_RIGHT] = _parse_el(Value);
     }
-    else
-    {
-        //FIXME
-        d->thickness = 18;
-    }
 
     return S_OK;
 }
@@ -765,6 +806,23 @@ static HRESULT _parse_operation(const WCHAR* ElementName,
         {
             o->material_id = _wtol(Value);
             if (o->material_id <= 0)
+            {
+                PARSE_FAIL(E_ABORT);
+            }
+        }
+    }
+    else if (wcscmp(ElementName, L"part") == 0)
+    {
+        PART_DEF_T *part = _get_operation_part(o, 0);
+        if (part == NULL)
+        {
+            PARSE_FAIL(E_ABORT);
+        }
+
+        if (wcscmp(LocalName, L"id") == 0)
+        {
+            part->id = _wtol(Value);
+            if (part->id <= 0)
             {
                 PARSE_FAIL(E_ABORT);
             }
@@ -1342,6 +1400,33 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
 
     for (size_t i = 0; i < p->operations_cnt; i++)
     {
+        OPERATION_DEF_T *o = &p->operations[i];
+        if (o->type == TYPE_CUTTING)
+        {
+            for (int k = 0; k < o->parts_cnt; k++)
+            {
+                DETAIL_DEF_T *d = _get_detail(o->parts[k].id);
+                if (d == NULL)
+                {
+                    printf("Unable to find detail with id=%d\n", o->parts[k].id);
+                    continue;
+                }
+
+                MATERIAL_DEF_T *m = _get_material(o->material_id);
+                if (m == NULL)
+                {
+                    printf("Unable to find material with id=%d\n", o->material_id);
+                    continue;
+                }
+
+                d->thickness = m->thickness;
+                int m_idx = _get_material_idx(o->material_id);
+                for (int j = 0; j < 6; j++)
+                {
+                    d->m_bands[j] = m_idx;
+                }
+            }
+        }
     }
 
     // TODO: looks like bands are side-reversed
@@ -1349,6 +1434,15 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
     for (size_t i = 0; i < p->details_cnt; i++)
     {
         DETAIL_DEF_T *d = &p->details[i];
+
+        if (d->name == NULL)
+        {
+            WCHAR tmpstr[32];
+            swprintf(tmpstr, sizeof(tmpstr), L"part_%d", d->id);
+            wprintf(L"Force set part name %s\n", tmpstr);
+            d->name = _wcsdup(tmpstr);
+        }
+
 
         for (int j = 0; j < 6; j++)
         {
@@ -1366,10 +1460,6 @@ int parse_xml(const wchar_t* xmlfilename, VIYAR_PROJECT_T *project /* out */)
                     hr = !S_OK;
                     HR(hr);
                 }
-            }
-            else
-            {
-                //TODO: set sheet band material to this band
             }
         }
 

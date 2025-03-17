@@ -46,11 +46,15 @@ typedef struct {
 } OPERATION_T;
 
 typedef struct {
+    int id;
+} PART_DEF_T;
+
+typedef struct {
     OPERATION_TYPE_T type;
     int id;
     int material_id;
     int parts_cnt;
-    int *parts;
+    PART_DEF_T *parts;
 } OPERATION_DEF_T;
 
 typedef struct {
