@@ -123,6 +123,7 @@ typedef struct {
     double y;
     double dp;
     double sxy;
+    double dia;
     bool fwd;
     int c;
     wchar_t *name;

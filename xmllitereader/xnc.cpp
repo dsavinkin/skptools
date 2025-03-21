@@ -15,20 +15,23 @@
 #pragma warning(disable : 4127)  // conditional expression is constant
 
 //TODO: add "tool.dia" to this macro
-#define REPLACE_CONSTS(n, str)                  \
-    if ((str) != NULL) {                        \
-        std::wstring ws(str);                   \
-        size_t pos;                             \
-        while ((pos = ws.find(L"dx")) != -1) {  \
-            ws = ws.replace(pos, 2, dx);        \
-        }                                       \
-        while ((pos = ws.find(L"dy")) != -1) {  \
-            ws = ws.replace(pos, 2, dy);        \
-        }                                       \
-        while ((pos = ws.find(L"dz")) != -1) {  \
-            ws = ws.replace(pos, 2, dz);        \
-        }                                       \
-        n = calc(ws.c_str());                   \
+#define CALCULATE_EXPR(n, str)                          \
+    if ((str) != NULL) {                                \
+        std::wstring ws(str);                           \
+        size_t pos;                                     \
+        while ((pos = ws.find(L"dx")) != -1) {          \
+            ws = ws.replace(pos, 2, dx);                \
+        }                                               \
+        while ((pos = ws.find(L"dy")) != -1) {          \
+            ws = ws.replace(pos, 2, dy);                \
+        }                                               \
+        while ((pos = ws.find(L"dz")) != -1) {          \
+            ws = ws.replace(pos, 2, dz);                \
+        }                                               \
+        while ((pos = ws.find(L"tool.dia")) != -1) {    \
+            ws = ws.replace(pos, 2, tool_dia);          \
+        }                                               \
+        n = calc(ws.c_str());                           \
     }
 
 /***************************************************************/
@@ -763,6 +766,7 @@ int parse_xml_program(const wchar_t* xmlstr, VIYAR_PROJECT_T *project /* in_out 
     wchar_t dx[32];
     wchar_t dy[32];
     wchar_t dz[32];
+    wchar_t tool_dia[32];
     swprintf(dx, sizeof(dx), L"%f", prg->dx);
     swprintf(dy, sizeof(dy), L"%f", prg->dy);
     swprintf(dz, sizeof(dz), L"%f", prg->dz);
@@ -780,14 +784,41 @@ int parse_xml_program(const wchar_t* xmlstr, VIYAR_PROJECT_T *project /* in_out 
         if (t != NULL)
         {
             b->dia = t->d;
+            swprintf(tool_dia, sizeof(tool_dia), L"%f", t->d);
+        }
+        else
+        {
+            memset(tool_dia, 0, sizeof(tool_dia));
         }
 
-        REPLACE_CONSTS(b->x, b->str_x);
-        REPLACE_CONSTS(b->y, b->str_y);
-        REPLACE_CONSTS(b->dp, b->str_dp);
-        REPLACE_CONSTS(b->as, b->str_as);
+        CALCULATE_EXPR(b->x, b->str_x);
+        CALCULATE_EXPR(b->y, b->str_y);
+        CALCULATE_EXPR(b->dp, b->str_dp);
+        CALCULATE_EXPR(b->as, b->str_as);
 
         wprintf(L" - bore %d: name=%s, dia=%f, x=%f, y=%f, dp=%f, as=%f, ac=%d\n", i, b->name, b->dia, b->x, b->y, b->dp, b->as, b->ac);
+    }
+
+    for (int i = 0; i < prg->mills_cnt; i++)
+    {
+        MILL_DEF_T *m = &prg->mills[i];
+        TOOL_DEF_T *t = _get_program_tool(prg, m->name);
+        if (t != NULL)
+        {
+            m->dia = t->d;
+            swprintf(tool_dia, sizeof(tool_dia), L"%f", t->d);
+        }
+        else
+        {
+            memset(tool_dia, 0, sizeof(tool_dia));
+        }
+
+        CALCULATE_EXPR(m->x, m->str_x);
+        CALCULATE_EXPR(m->y, m->str_y);
+        CALCULATE_EXPR(m->dp, m->str_dp);
+        CALCULATE_EXPR(m->sxy, m->str_sxy);
+
+        wprintf(L" - mill %d: name=%s, dia=%f, x=%f, y=%f, dp=%f, sxy=%f\n", i, m->name, m->dia, m->x, m->y, m->dp, m->sxy);
     }
 
     hr = S_OK;
