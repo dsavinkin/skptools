@@ -30,6 +30,9 @@
     <ClCompile Include="xnc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="calc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="drill.h">
@@ -42,6 +45,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="xnc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="calc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,5 +1,6 @@
 #include "viyar.h"
 #include "xnc.h"
+#include "calc.h"
 
 #include <ole2.h>
 #include <xmllite.h>
@@ -752,6 +753,8 @@ int parse_xml_program(const wchar_t* xmlstr, VIYAR_PROJECT_T *project /* in_out 
     for (int i = 0; i < prg->bores_cnt; i++)
     {
         BORE_DEF_T *b = &prg->bores[i];
+        b->x = calc(b->str_x);
+
         wprintf(L" - bore %d: name=%s, x=%f, y=%f\n", i, b->name, b->x, b->y);
     }
 #endif
