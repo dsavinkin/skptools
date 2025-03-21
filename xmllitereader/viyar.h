@@ -107,6 +107,7 @@ typedef struct {
     double y;
     double dp;
     double as;
+    double dia;
     int ac;
     bool av;
     bool m;
@@ -131,9 +132,6 @@ typedef struct {
 } MILL_DEF_T;
 
 typedef struct {
-    wchar_t *str_dx;
-    wchar_t *str_dy;
-    wchar_t *str_dz;
     double dx;
     double dy;
     double dz;

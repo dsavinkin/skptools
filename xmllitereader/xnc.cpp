@@ -1,6 +1,7 @@
 #include "viyar.h"
 #include "xnc.h"
 #include "calc.h"
+#include <string>
 
 #include <ole2.h>
 #include <xmllite.h>
@@ -12,6 +13,23 @@
 /***************************************************************/
 
 #pragma warning(disable : 4127)  // conditional expression is constant
+
+//TODO: add "tool.dia" to this macro
+#define REPLACE_CONSTS(n, str)                  \
+    if ((str) != NULL) {                        \
+        std::wstring ws(str);                   \
+        size_t pos;                             \
+        while ((pos = ws.find(L"dx")) != -1) {  \
+            ws = ws.replace(pos, 2, dx);        \
+        }                                       \
+        while ((pos = ws.find(L"dy")) != -1) {  \
+            ws = ws.replace(pos, 2, dy);        \
+        }                                       \
+        while ((pos = ws.find(L"dz")) != -1) {  \
+            ws = ws.replace(pos, 2, dz);        \
+        }                                       \
+        n = calc(ws.c_str());                   \
+    }
 
 /***************************************************************/
 /*                       Local Types                           */
@@ -739,11 +757,16 @@ int parse_xml_program(const wchar_t* xmlstr, VIYAR_PROJECT_T *project /* in_out 
         }
     }
 
-    //TODO: calculate actual points based on formulas in str_* variables.
-
-#ifndef TODO
     PROGRAM_DEF_T *prg = &p->programs[p->programs_cnt-1];
     printf("prg dx=%f, dy=%f, dz=%f\n", prg->dx, prg->dy, prg->dz);
+
+    wchar_t dx[32];
+    wchar_t dy[32];
+    wchar_t dz[32];
+    swprintf(dx, sizeof(dx), L"%f", prg->dx);
+    swprintf(dy, sizeof(dy), L"%f", prg->dy);
+    swprintf(dz, sizeof(dz), L"%f", prg->dz);
+
     for (int i = 0; i < prg->tools_cnt; i++)
     {
         TOOL_DEF_T *t = &prg->tools[i];
@@ -753,11 +776,19 @@ int parse_xml_program(const wchar_t* xmlstr, VIYAR_PROJECT_T *project /* in_out 
     for (int i = 0; i < prg->bores_cnt; i++)
     {
         BORE_DEF_T *b = &prg->bores[i];
-        b->x = calc(b->str_x);
+        TOOL_DEF_T *t = _get_program_tool(prg, b->name);
+        if (t != NULL)
+        {
+            b->dia = t->d;
+        }
 
-        wprintf(L" - bore %d: name=%s, x=%f, y=%f\n", i, b->name, b->x, b->y);
+        REPLACE_CONSTS(b->x, b->str_x);
+        REPLACE_CONSTS(b->y, b->str_y);
+        REPLACE_CONSTS(b->dp, b->str_dp);
+        REPLACE_CONSTS(b->as, b->str_as);
+
+        wprintf(L" - bore %d: name=%s, dia=%f, x=%f, y=%f, dp=%f, as=%f, ac=%d\n", i, b->name, b->dia, b->x, b->y, b->dp, b->as, b->ac);
     }
-#endif
 
     hr = S_OK;
 
