@@ -16,5 +16,5 @@
 /*                  Function declarations                      */
 /***************************************************************/
 
-int parse_xml_program(const wchar_t* xmlstr, VIYAR_PROJECT_T *project /* in_out */);
+int parse_xml_program(const wchar_t* xmlstr, OPERATION_DEF_T *operation/* in_out */);
 

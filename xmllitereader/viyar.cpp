@@ -1445,7 +1445,14 @@ int project_process(VIYAR_PROJECT_T *project /* in_out */)
                 continue;
             }
 
-            hr = parse_xml_program(o->program, p);
+#if 1
+            if (o->program != NULL)
+            {
+                wprintf(L"%s\n", o->program);
+            }
+#endif
+
+            hr = parse_xml_program(o->program, o);
             if (FAILED(hr))
             {
                 HR(hr);
@@ -1516,19 +1523,20 @@ void project_destroy(VIYAR_PROJECT_T *project)
 
     for (int i = 0 ; i < project->operations_cnt; i++)
     {
-        free(project->operations[i].parts);
-        free(project->operations[i].program);
-    }
+        OPERATION_DEF_T *o = &project->operations[i];
+        for (int j = 0 ; j < o->programs_cnt; j++)
+        {
+            PROGRAM_DEF_T *prg = &o->programs[j];
+            free(prg->tools); //TODO: free names and other wchar_t*
+            free(prg->bores); //TODO: free names and other wchar_t*
+            //TODO: go to mills and free inside
+            free(prg->mills); //TODO: free names and other wchar_t*
+        }
 
-    for (int i = 0 ; i < project->programs_cnt; i++)
-    {
-        free(project->programs[i].tools); //TODO: free names and other wchar_t*
-        free(project->programs[i].bores); //TODO: free names and other wchar_t*
-        //TODO: go to mills and free inside
-        free(project->programs[i].mills); //TODO: free names and other wchar_t*
+        free(o->parts);
+        free(o->program);
     }
 
     free(project->operations);
-    free(project->programs);
     memset(project, 0, sizeof(*project));
 }

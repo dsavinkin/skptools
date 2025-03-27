@@ -362,6 +362,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
     OPERATION_T *corner[CORNER_MAX];
     size_t num_corner_operations = 0;
     memset(corner, 0, sizeof(corner));
+#if 0
     for (size_t j = 0; j < d->operations_cnt; j++)
     {
         OPERATION_T *op = &d->operations[j];
@@ -396,7 +397,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
             //wprintf(L"TODO: Operation type=%d not supported.\n", op->type);
         }
     }
-
+#endif
 
     SUPoint3D sides[6][4] = {
         {   //SIDE_FRONT
@@ -525,6 +526,119 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
 
     _add_face(entities, sheet_points, num_sheet_points, material);
 
+    for (int j = 0; j < project.operations_cnt; j++)
+    {
+        OPERATION_DEF_T *o = &project.operations[j];
+        if (o->type == TYPE_XNC)
+        {
+            for (int k = 0; k < o->parts_cnt; k++)
+            {
+                if (o->parts[k].id == d->id)
+                {
+                    printf("### process XNC operation %d for part %d, programs_cnt: %d\n", o->id, d->id, o->programs_cnt);
+
+                    for (int l = 0; l < o->programs_cnt; l++)
+                    {
+                        PROGRAM_DEF_T *prg = &o->programs[l];
+                        printf("### tools: %d, bores: %d, mills: %d\n", prg->tools_cnt, prg->bores_cnt, prg->mills_cnt);
+                        for (int m = 0; m < prg->bores_cnt; m++)
+                        {
+                            BORE_DEF_T *b = &prg->bores[m];
+
+                            printf("### bore: side=%d, dia=%f, x=%f, y=%f, dp=%f, ac=%d, as=%f, av=%d, m=%d\n",
+                                   b->side, b->dia, b->x, b->y, b->dp, b->ac, b->as, b->av, b->m);
+
+                            DRILL_T dr = {0};
+
+                            dr.d = b->dia;
+                            dr.depth = b->dp;
+                            dr.tdepth = 0;
+
+                            if (dr.depth == 0)
+                            {
+                                printf("### Zero depth, skip item\n");
+                                continue;
+                            }
+
+                            switch (b->side)
+                            {
+                                case 0: //OK
+                                    dr.side = SIDE_FRONT;
+                                    dr.x = b->x;
+                                    dr.y = b->y;
+                                    break;
+
+                                case 1: //OK
+                                    dr.side = SIDE_LEFT;
+                                    if (b->m)
+                                    {
+                                        dr.x = prg->dz/2;
+                                    }
+                                    dr.y = b->y;
+                                    break;
+
+                                case 2:
+                                    dr.side = SIDE_BOTTOM;
+                                    if (b->m)
+                                    {
+                                        dr.y = prg->dz/2;
+                                    }
+                                    dr.x = b->x;
+                                    break;
+
+                                case 3: //OK
+                                    dr.side = SIDE_RIGHT;
+                                    if (b->m)
+                                    {
+                                        dr.x = prg->dz/2;
+                                    }
+                                    dr.y = b->y;
+                                    break;
+
+                                case 4: //not used
+                                    dr.side = SIDE_BACK;
+                                    dr.x = b->x;
+                                    dr.y = b->y;
+                                    break;
+
+                                case 5: //OK
+                                    dr.side = SIDE_TOP;
+                                    dr.x = b->x;
+                                    if (b->m)
+                                    {
+                                        dr.y = prg->dz/2;
+                                    }
+                                    break;
+
+                                default:
+                                    printf("### Invalid side %d, skip item\n", b->side);
+                            }
+
+                            if (((dr.side == SIDE_FRONT) || (dr.side == SIDE_BACK))
+                                    && (dr.depth > d->thickness))
+                            {
+                                dr.tdepth = d->thickness;
+                            }
+
+
+#if 1
+                            //for (int i = 0; i < b->ac ; i++)
+                            {
+                                printf("### drill: side=%d, d=%f, x=%f, y=%f, depth=%f, tdepth=%f\n",
+                                       dr.side, dr.d, dr.x, dr.y, dr.depth, dr.tdepth);
+
+                                _detail_add_drill(entities, sides[dr.side][0], normals[dr.side], &dr);
+                                drill_append(&dr, d->amount);
+                            }
+#endif
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+#if 0
     for (int i = 0; i < 6; ++i)
     {
         for (size_t j = 0; j < d->operations_cnt; j++)
@@ -551,6 +665,8 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
             }
         }
     }
+#endif
+
     return 0;
 }
 

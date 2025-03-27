@@ -53,43 +53,6 @@ typedef struct {
 } PART_DEF_T;
 
 typedef struct {
-    OPERATION_TYPE_T type;
-    int id;
-    int material_id;
-    int parts_cnt;
-    PART_DEF_T *parts;
-    wchar_t *program;
-} OPERATION_DEF_T;
-
-typedef struct {
-    int id;
-    wchar_t *name;
-    //int material_id;
-    double width;
-    double height;
-    double thickness;
-    int m_el[6];
-    //int multiplicity;
-    //int grain;
-    size_t amount;
-    int m_bands[6]; //material indexes in material array
-    size_t operations_cnt;
-    OPERATION_T *operations; //dynamic array
-} DETAIL_DEF_T;
-
-typedef enum {
-    TYPE_M_UNDEFINED = 0,
-    TYPE_SHEET,
-    TYPE_BAND
-} MATERIAL_TYPE_T;
-
-typedef struct {
-    MATERIAL_TYPE_T type;
-    int id;
-    double thickness;
-} MATERIAL_DEF_T;
-
-typedef struct {
     wchar_t *name;
     double d;
 } TOOL_DEF_T;
@@ -145,14 +108,53 @@ typedef struct {
 } PROGRAM_DEF_T;
 
 typedef struct {
+    OPERATION_TYPE_T type;
+    int id;
+    int material_id;
+    int parts_cnt;
+    PART_DEF_T *parts;
+    wchar_t *program;
+    PROGRAM_DEF_T *programs;
+    int programs_cnt;
+} OPERATION_DEF_T;
+
+typedef struct {
+    int id;
+    wchar_t *name;
+    //int material_id;
+    double width;
+    double height;
+    double thickness;
+    int m_el[6];
+    //int multiplicity;
+    //int grain;
+    size_t amount;
+    int m_bands[6]; //material indexes in material array
+#if 0
+    size_t operations_cnt;
+    OPERATION_T *operations; //dynamic array
+#endif
+} DETAIL_DEF_T;
+
+typedef enum {
+    TYPE_M_UNDEFINED = 0,
+    TYPE_SHEET,
+    TYPE_BAND
+} MATERIAL_TYPE_T;
+
+typedef struct {
+    MATERIAL_TYPE_T type;
+    int id;
+    double thickness;
+} MATERIAL_DEF_T;
+
+typedef struct {
     MATERIAL_DEF_T *materials; //dynamic array
     DETAIL_DEF_T *details; //dynamic array
     OPERATION_DEF_T *operations; //dynamic array
-    PROGRAM_DEF_T *programs;
     int details_cnt;
     int materials_cnt;
     int operations_cnt;
-    int programs_cnt;
 } VIYAR_PROJECT_T;
 
 /***************************************************************/

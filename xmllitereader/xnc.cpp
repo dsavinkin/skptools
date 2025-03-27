@@ -56,7 +56,7 @@ static XNC_STATE_T _state = STATE_ROOT;
 
 static PROGRAM_DEF_T *current_program = NULL;
 
-static VIYAR_PROJECT_T *p = NULL;
+static OPERATION_DEF_T *current_operation = NULL;
 
 static BORE_DEF_T *current_bore = NULL;
 static TOOL_DEF_T *current_tool = NULL;
@@ -87,19 +87,21 @@ static TOOL_DEF_T *_get_program_tool(PROGRAM_DEF_T *prg, wchar_t *name)
 
 static PROGRAM_DEF_T *_add_program(void)
 {
-    if (p == NULL)
+    if (current_operation == NULL)
     {
         return NULL;
     }
 
-    p->programs_cnt++;
-    p->programs = (PROGRAM_DEF_T*)realloc(p->programs, sizeof(PROGRAM_DEF_T)*p->programs_cnt);
-    if (p->programs == NULL)
+    OPERATION_DEF_T *o = current_operation;
+
+    o->programs_cnt++;
+    o->programs = (PROGRAM_DEF_T*)realloc(o->programs, sizeof(PROGRAM_DEF_T)*o->programs_cnt);
+    if (o->programs == NULL)
     {
         return NULL;
     }
 
-    PROGRAM_DEF_T *prg = &p->programs[p->programs_cnt-1];
+    PROGRAM_DEF_T *prg = &o->programs[o->programs_cnt-1];
     memset(prg, 0, sizeof(PROGRAM_DEF_T));
 
     return prg;
@@ -146,51 +148,6 @@ static BORE_DEF_T *_add_program_bore(PROGRAM_DEF_T *prg, int side)
     b->side = side;
 
     return b;
-}
-
-static DETAIL_DEF_T *_add_detail()
-{
-    p->details_cnt++;
-    p->details = (DETAIL_DEF_T*)realloc(p->details, sizeof(DETAIL_DEF_T)*p->details_cnt);
-    if (p->details == NULL)
-    {
-        return NULL;
-    }
-
-    DETAIL_DEF_T *d = &p->details[p->details_cnt-1];
-    memset(d, 0, sizeof(DETAIL_DEF_T));
-
-    return d;
-}
-
-static MATERIAL_DEF_T *_add_material()
-{
-    p->materials_cnt++;
-    p->materials = (MATERIAL_DEF_T*)realloc(p->materials, sizeof(MATERIAL_DEF_T)*p->materials_cnt);
-    if (p->materials == NULL)
-    {
-        return NULL;
-    }
-
-    MATERIAL_DEF_T *m = &p->materials[p->materials_cnt-1];
-    memset(m, 0, sizeof(MATERIAL_DEF_T));
-
-    return m;
-}
-
-static OPERATION_DEF_T *_add_operation()
-{
-    p->operations_cnt++;
-    p->operations = (OPERATION_DEF_T*)realloc(p->operations, sizeof(OPERATION_DEF_T)*p->operations_cnt);
-    if (p->operations == NULL)
-    {
-        return NULL;
-    }
-
-    OPERATION_DEF_T *o = &p->operations[p->operations_cnt-1];
-    memset(o, 0, sizeof(OPERATION_DEF_T));
-
-    return o;
 }
 
 static HRESULT _element_start(const WCHAR* ElementName, void *data)
@@ -585,7 +542,7 @@ static HRESULT WriteAttributes(IXmlReader* pReader, const WCHAR* ElementName, at
     return hr;
 }
 
-int parse_xml_program(const wchar_t* xmlstr, VIYAR_PROJECT_T *project /* in_out */)
+int parse_xml_program(const wchar_t* xmlstr, OPERATION_DEF_T *operation/* in_out */)
 {
     HRESULT hr = S_OK;
     IStream *pStream = NULL;
@@ -600,7 +557,7 @@ int parse_xml_program(const wchar_t* xmlstr, VIYAR_PROJECT_T *project /* in_out 
     STATSTG ssStreamData = {0};
     ULONG dwWritten = 0;
 
-    p = project;
+    current_operation = operation;
 
     if (FAILED(hr = CreateStreamOnHGlobal(NULL, FALSE, &pStream)))
     {
@@ -760,7 +717,7 @@ int parse_xml_program(const wchar_t* xmlstr, VIYAR_PROJECT_T *project /* in_out 
         }
     }
 
-    PROGRAM_DEF_T *prg = &p->programs[p->programs_cnt-1];
+    PROGRAM_DEF_T *prg = &current_operation->programs[current_operation->programs_cnt-1];
     printf("prg dx=%f, dy=%f, dz=%f\n", prg->dx, prg->dy, prg->dz);
 
     wchar_t dx[32];
@@ -796,7 +753,8 @@ int parse_xml_program(const wchar_t* xmlstr, VIYAR_PROJECT_T *project /* in_out 
         CALCULATE_EXPR(b->dp, b->str_dp);
         CALCULATE_EXPR(b->as, b->str_as);
 
-        wprintf(L" - bore %d: name=%s, dia=%f, x=%f, y=%f, dp=%f, as=%f, ac=%d\n", i, b->name, b->dia, b->x, b->y, b->dp, b->as, b->ac);
+        wprintf(L" - bore %d: side=%d, name=%s, dia=%f, x=%f, y=%f, dp=%f, as=%f, ac=%d\n",
+                i, b->side, b->name, b->dia, b->x, b->y, b->dp, b->as, b->ac);
     }
 
     for (int i = 0; i < prg->mills_cnt; i++)
