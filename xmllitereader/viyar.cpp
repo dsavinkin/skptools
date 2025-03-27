@@ -799,6 +799,22 @@ static HRESULT _parse_operation(const WCHAR* ElementName,
         {
             o->program = _wcsdup(Value);
         }
+        else if (wcscmp(LocalName, L"side") == 0)
+        {
+
+        }
+        else if (wcscmp(LocalName, L"mirHor") == 0)
+        {
+
+        }
+        else if (wcscmp(LocalName, L"mirVert") == 0)
+        {
+
+        }
+        else if (wcscmp(LocalName, L"turn") == 0)
+        {
+
+        }
     }
     else if (wcscmp(ElementName, L"material") == 0)
     {

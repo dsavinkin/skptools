@@ -112,6 +112,10 @@ typedef struct {
     int id;
     int material_id;
     int parts_cnt;
+    bool side;
+    bool mirHor;
+    bool mirVert;
+    int turn;
     PART_DEF_T *parts;
     wchar_t *program;
     PROGRAM_DEF_T *programs;
