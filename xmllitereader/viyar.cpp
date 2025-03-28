@@ -662,19 +662,19 @@ static HRESULT _parse_product_part(const WCHAR* ElementName,
             d->name = _wcsdup(Value);
         }
     }
-    else if (wcscmp(LocalName, L"elt") == 0)
+    else if (wcscmp(LocalName, L"elb") == 0)
     {
         d->m_el[SIDE_TOP] = _parse_el(Value);
     }
-    else if (wcscmp(LocalName, L"elb") == 0)
+    else if (wcscmp(LocalName, L"elt") == 0)
     {
         d->m_el[SIDE_BOTTOM] = _parse_el(Value);
     }
-    else if (wcscmp(LocalName, L"ell") == 0)
+    else if (wcscmp(LocalName, L"elr") == 0)
     {
         d->m_el[SIDE_LEFT] = _parse_el(Value);
     }
-    else if (wcscmp(LocalName, L"elr") == 0)
+    else if (wcscmp(LocalName, L"ell") == 0)
     {
         d->m_el[SIDE_RIGHT] = _parse_el(Value);
     }
