@@ -129,6 +129,7 @@ typedef struct {
     double width;
     double height;
     double thickness;
+    bool txt;
     int m_el[6];
     //int multiplicity;
     //int grain;

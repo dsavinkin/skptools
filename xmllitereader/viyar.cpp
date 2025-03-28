@@ -678,6 +678,13 @@ static HRESULT _parse_product_part(const WCHAR* ElementName,
     {
         d->m_el[SIDE_RIGHT] = _parse_el(Value);
     }
+    else if (wcscmp(LocalName, L"txt") == 0)
+    {
+        if (_parse_boolean(&d->txt, Value) != S_OK)
+        {
+            PARSE_FAIL(E_ABORT);
+        }
+    }
 
     return S_OK;
 }
