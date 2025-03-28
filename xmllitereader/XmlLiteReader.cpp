@@ -560,50 +560,57 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                                 continue;
                             }
 
+                            /*
+                                TODO: use o->turn
+                                0 - 0 degrees
+                                1 - 90 degrees
+                                ...
+                            */
+
                             switch (b->side)
                             {
-                                case 0: //OK
-                                    dr.side = SIDE_FRONT;
-                                    dr.x = b->x;
-                                    dr.y = b->y;
+                                case 0:
+                                    dr.side = o->side ? SIDE_BACK : SIDE_FRONT;
+                                    dr.x = o->mirHor ? b->x : prg->dx - b->x;
+                                    dr.y = o->mirVert ? b->y : prg->dy - b->y;
                                     break;
 
-                                case 1: //OK
-                                    dr.side = SIDE_LEFT;
-                                    if (b->m)
-                                    {
-                                        dr.x = prg->dz/2;
-                                    }
-                                    dr.y = b->y;
-                                    break;
-
-                                case 2:
-                                    dr.side = SIDE_BOTTOM;
-                                    if (b->m)
-                                    {
-                                        dr.y = prg->dz/2;
-                                    }
-                                    dr.x = b->x;
-                                    break;
-
-                                case 3: //OK
+                                case 1:
                                     dr.side = SIDE_RIGHT;
                                     if (b->m)
                                     {
                                         dr.x = prg->dz/2;
                                     }
-                                    dr.y = b->y;
+                                    dr.y = o->mirVert ? b->y : prg->dy - b->y;
+                                    break;
+
+                                case 2:
+                                    dr.side = SIDE_TOP;
+                                    if (b->m)
+                                    {
+                                        dr.y = prg->dz/2;
+                                    }
+                                    dr.x = o->mirHor ? b->x : prg->dx - b->x;
+                                    break;
+
+                                case 3:
+                                    dr.side = SIDE_LEFT;
+                                    if (b->m)
+                                    {
+                                        dr.x = prg->dz/2;
+                                    }
+                                    dr.y = o->mirVert ? b->y : prg->dy - b->y;
                                     break;
 
                                 case 4: //not used
-                                    dr.side = SIDE_BACK;
-                                    dr.x = b->x;
-                                    dr.y = b->y;
+                                    dr.side = o->side ?  SIDE_FRONT : SIDE_BACK;
+                                    dr.x = o->mirHor ? b->x : prg->dx - b->x;
+                                    dr.y = o->mirVert ? b->y : prg->dy - b->y;
                                     break;
 
-                                case 5: //OK
-                                    dr.side = SIDE_TOP;
-                                    dr.x = b->x;
+                                case 5:
+                                    dr.side = SIDE_BOTTOM;
+                                    dr.x = o->mirHor ? b->x : prg->dx - b->x;
                                     if (b->m)
                                     {
                                         dr.y = prg->dz/2;
@@ -1110,7 +1117,8 @@ int __cdecl wmain(int argc, _In_reads_(argc) WCHAR* argv[])
     for (int i = 0; i < project.operations_cnt; i++)
     {
         OPERATION_DEF_T *o = &project.operations[i];
-        printf("operation %d: id=%d, type=%d, material_id=%d, program=%d\n", i, o->id, o->type, o->material_id, o->program ? 1 : 0);
+        printf("operation %d: id=%d, type=%d, material_id=%d, program=%d, side=%d\n",
+               i, o->id, o->type, o->material_id, o->program ? 1 : 0, o->side);
         printf(" - parts:");
         for (int j = 0; j < o->parts_cnt; j++)
         {
