@@ -535,12 +535,15 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
             {
                 if (o->parts[k].id == d->id)
                 {
-                    printf("### process XNC operation %d for part %d, programs_cnt: %d\n", o->id, d->id, o->programs_cnt);
+                    printf("### process XNC operation %d for part %d, programs_cnt: %d, side=%d, mirHor=%d, mirVert=%d\n",
+                           o->id, d->id, o->programs_cnt, o->side, o->mirHor, o->mirVert);
 
                     for (int l = 0; l < o->programs_cnt; l++)
                     {
                         PROGRAM_DEF_T *prg = &o->programs[l];
-                        printf("### tools: %d, bores: %d, mills: %d\n", prg->tools_cnt, prg->bores_cnt, prg->mills_cnt);
+                        printf("### tools: %d, bores: %d, mills: %d, dx=%f, dy=%f, dz=%f\n",
+                               prg->tools_cnt, prg->bores_cnt, prg->mills_cnt, prg->dx, prg->dy, prg->dz);
+
                         for (int m = 0; m < prg->bores_cnt; m++)
                         {
                             DRILL_T dr = {0};
@@ -550,9 +553,12 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                             double x = b->x;
                             double y = b->y;
                             double *asp = NULL;
+                            double dx = prg->dx;
+                            double dy = prg->dy;
+                            double dz = prg->dz;
 
                             printf("### bore: side=%d, dia=%f, x=%f, y=%f, dp=%f, ac=%d, as=%f, av=%d, m=%d\n",
-                                   b->side, b->dia, b->x, b->y, b->dp, b->ac, b->as, b->av, b->m);
+                                   side, b->dia, x, y, b->dp, b->ac, b->as, b->av, b->m);
 
                             dr.d = b->dia;
                             dr.depth = b->dp;
@@ -566,8 +572,43 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
 
                             for (int i = 0; i < o->turn; i++)
                             {
-                                printf("TODO: Turn operation by 90 deg.\n");
+                                double tmp;
 
+                                tmp = x;
+                                x = y;
+                                y = dx - tmp;
+
+                                tmp = dx;
+                                dx = dy;
+                                dy = tmp;
+
+                                switch (side)
+                                {
+                                    case 0:
+                                        break;
+
+                                    case 1:
+                                        side = 5;
+                                        break;
+
+                                    case 2:
+                                        side = 1;
+                                        break;
+
+                                    case 3:
+                                        side = 2;
+                                        break;
+
+                                    case 4:
+                                        break;
+
+                                    case 5:
+                                        side = 3;
+                                        break;
+                                }
+
+                                printf("### turn: side=%d, x=%f, y=%f, dx=%f, dy=%f\n",
+                                       side, x, y, dx, dy);
                             }
 
                             for (int i = 0; (i < b->ac); i++)
@@ -576,8 +617,8 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                                 {
                                     case 0:
                                         dr.side = o->side ? SIDE_BACK : SIDE_FRONT;
-                                        dr.x = o->mirHor ? x : prg->dx - x;
-                                        dr.y = o->mirVert ? y : prg->dy - y;
+                                        dr.x = o->mirHor ? x : dx - x;
+                                        dr.y = o->mirVert ? y : dy - y;
                                         asp = av ? &y : &x;
                                         break;
 
@@ -585,9 +626,9 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                                         dr.side = SIDE_RIGHT;
                                         if (b->m)
                                         {
-                                            dr.x = prg->dz/2;
+                                            dr.x = dz/2;
                                         }
-                                        dr.y = o->mirVert ? y : prg->dy - y;
+                                        dr.y = o->mirVert ? y : dy - y;
                                         asp = av ? &x : &y;
                                         break;
 
@@ -595,9 +636,9 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                                         dr.side = SIDE_TOP;
                                         if (b->m)
                                         {
-                                            dr.y = prg->dz/2;
+                                            dr.y = dz/2;
                                         }
-                                        dr.x = o->mirHor ? x : prg->dx - x;
+                                        dr.x = o->mirHor ? x : dx - x;
                                         asp = av ? &x : &y;
                                         break;
 
@@ -605,25 +646,25 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                                         dr.side = SIDE_LEFT;
                                         if (b->m)
                                         {
-                                            dr.x = prg->dz/2;
+                                            dr.x = dz/2;
                                         }
-                                        dr.y = o->mirVert ? y : prg->dy - y;
+                                        dr.y = o->mirVert ? y : dy - y;
                                         asp = av ? &x : &y;
                                         break;
 
                                     case 4: //not used
                                         dr.side = o->side ?  SIDE_FRONT : SIDE_BACK;
-                                        dr.x = o->mirHor ? x : prg->dx - x;
-                                        dr.y = o->mirVert ? y : prg->dy - y;
+                                        dr.x = o->mirHor ? x : dx - x;
+                                        dr.y = o->mirVert ? y : dy - y;
                                         asp = av ? &x : &y;
                                         break;
 
                                     case 5:
                                         dr.side = SIDE_BOTTOM;
-                                        dr.x = o->mirHor ? x : prg->dx - x;
+                                        dr.x = o->mirHor ? x : dx - x;
                                         if (b->m)
                                         {
-                                            dr.y = prg->dz/2;
+                                            dr.y = dz/2;
                                         }
                                         asp = av ? &x : &y;
                                         break;
@@ -637,7 +678,6 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                                 {
                                     dr.tdepth = d->thickness;
                                 }
-
 
                                 printf("### drill: side=%d, d=%f, x=%f, y=%f, depth=%f, tdepth=%f\n",
                                        dr.side, dr.d, dr.x, dr.y, dr.depth, dr.tdepth);
