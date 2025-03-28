@@ -297,7 +297,7 @@ static HRESULT _parse_boolean(bool *ret, const WCHAR* Value)
     }
     else if (wcscmp(Value, L"false") == 0)
     {
-        *ret = true;
+        *ret = false;
     }
     else
     {
@@ -332,7 +332,7 @@ static HRESULT _parse_bore(BORE_DEF_T *b, const WCHAR* LocalName, const WCHAR* V
     else if (wcscmp(LocalName, L"ver") == 0)
     {
         b->ver = _wtol(Value);
-        if (b->ver <= 0)
+        if (errno)
         {
             PARSE_FAIL(E_ABORT);
         }
@@ -340,7 +340,7 @@ static HRESULT _parse_bore(BORE_DEF_T *b, const WCHAR* LocalName, const WCHAR* V
     else if (wcscmp(LocalName, L"ac") == 0)
     {
         b->ac = _wtol(Value);
-        if (b->ac <= 0)
+        if (errno)
         {
             PARSE_FAIL(E_ABORT);
         }
@@ -380,7 +380,7 @@ static HRESULT _parse_program(const WCHAR* ElementName,
         if (wcscmp(LocalName, L"dx") == 0)
         {
             prg->dx = _wtof(Value);
-            if (prg->dx <= 0.0)
+            if (errno)
             {
                 PARSE_FAIL(E_ABORT);
             }
@@ -388,7 +388,7 @@ static HRESULT _parse_program(const WCHAR* ElementName,
         else if (wcscmp(LocalName, L"dy") == 0)
         {
             prg->dy = _wtof(Value);
-            if (prg->dy <= 0.0)
+            if (errno)
             {
                 PARSE_FAIL(E_ABORT);
             }
@@ -396,7 +396,7 @@ static HRESULT _parse_program(const WCHAR* ElementName,
         else if (wcscmp(LocalName, L"dz") == 0)
         {
             prg->dz = _wtof(Value);
-            if (prg->dz <= 0.0)
+            if (errno)
             {
                 PARSE_FAIL(E_ABORT);
             }
@@ -417,7 +417,7 @@ static HRESULT _parse_program(const WCHAR* ElementName,
         if (wcscmp(LocalName, L"d") == 0)
         {
             t->d = _wtof(Value);
-            if (t->d <= 0.0)
+            if (errno)
             {
                 PARSE_FAIL(E_ABORT);
             }

@@ -277,6 +277,24 @@ static OPERATION_DEF_T *_add_operation()
     return o;
 }
 
+static HRESULT _parse_boolean(bool *ret, const WCHAR* Value)
+{
+    if (wcscmp(Value, L"true") == 0)
+    {
+        *ret = true;
+    }
+    else if (wcscmp(Value, L"false") == 0)
+    {
+        *ret = false;
+    }
+    else
+    {
+        PARSE_FAIL(E_ABORT);
+    }
+
+    return S_OK;
+}
+
 static HRESULT _element_start(const WCHAR* ElementName, void *data)
 {
     wprintf(L"S %d %d: Element start (%p) <%s ...\n", _state, _good_state, data, ElementName);
@@ -601,11 +619,15 @@ static HRESULT _parse_product_part(const WCHAR* ElementName,
     if (wcscmp(LocalName, L"id") == 0)
     {
         d->id = _wtol(Value);
+        if (errno)
+        {
+            PARSE_FAIL(E_ABORT);
+        }
     }
     else if (wcscmp(LocalName, L"dl") == 0)
     {
         d->width = _wtof(Value);
-        if (d->width <= 0.0)
+        if (errno)
         {
             PARSE_FAIL(E_ABORT);
         }
@@ -613,7 +635,7 @@ static HRESULT _parse_product_part(const WCHAR* ElementName,
     else if (wcscmp(LocalName, L"dw") == 0)
     {
         d->height = _wtof(Value);
-        if (d->height <= 0.0)
+        if (errno)
         {
             PARSE_FAIL(E_ABORT);
         }
@@ -621,6 +643,11 @@ static HRESULT _parse_product_part(const WCHAR* ElementName,
     else if (wcscmp(LocalName, L"count") == 0)
     {
         d->amount = _wtol(Value);
+        if (errno)
+        {
+            PARSE_FAIL(E_ABORT);
+        }
+
         if (d->amount <= 0)
         {
             wprintf(L"Warning: %s = %s\n", LocalName, Value);
@@ -719,7 +746,7 @@ static HRESULT _parse_good(const WCHAR* ElementName,
                     }
 
                     m->thickness = _wtof(Value);
-                    if (m->thickness <= 0.0)
+                    if (errno)
                     {
                         PARSE_FAIL(E_ABORT);
                     }
@@ -790,7 +817,7 @@ static HRESULT _parse_operation(const WCHAR* ElementName,
         else if (wcscmp(LocalName, L"id") == 0)
         {
             o->id = _wtol(Value);
-            if (o->id <= 0)
+            if (errno)
             {
                 PARSE_FAIL(E_ABORT);
             }
@@ -801,19 +828,32 @@ static HRESULT _parse_operation(const WCHAR* ElementName,
         }
         else if (wcscmp(LocalName, L"side") == 0)
         {
-
+            if (_parse_boolean(&o->side, Value) != S_OK)
+            {
+                PARSE_FAIL(E_ABORT);
+            }
         }
         else if (wcscmp(LocalName, L"mirHor") == 0)
         {
-
+            if (_parse_boolean(&o->mirHor, Value) != S_OK)
+            {
+                PARSE_FAIL(E_ABORT);
+            }
         }
         else if (wcscmp(LocalName, L"mirVert") == 0)
         {
-
+            if (_parse_boolean(&o->mirVert, Value) != S_OK)
+            {
+                PARSE_FAIL(E_ABORT);
+            }
         }
         else if (wcscmp(LocalName, L"turn") == 0)
         {
-
+            o->turn = _wtol(Value);
+            if (errno)
+            {
+                PARSE_FAIL(E_ABORT);
+            }
         }
     }
     else if (wcscmp(ElementName, L"material") == 0)
@@ -821,7 +861,7 @@ static HRESULT _parse_operation(const WCHAR* ElementName,
         if (wcscmp(LocalName, L"id") == 0)
         {
             o->material_id = _wtol(Value);
-            if (o->material_id <= 0)
+            if (errno)
             {
                 PARSE_FAIL(E_ABORT);
             }
@@ -838,7 +878,7 @@ static HRESULT _parse_operation(const WCHAR* ElementName,
         if (wcscmp(LocalName, L"id") == 0)
         {
             part->id = _wtol(Value);
-            if (part->id <= 0)
+            if (errno)
             {
                 PARSE_FAIL(E_ABORT);
             }
