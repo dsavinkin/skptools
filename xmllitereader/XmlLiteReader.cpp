@@ -543,12 +543,16 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                         printf("### tools: %d, bores: %d, mills: %d\n", prg->tools_cnt, prg->bores_cnt, prg->mills_cnt);
                         for (int m = 0; m < prg->bores_cnt; m++)
                         {
+                            DRILL_T dr = {0};
                             BORE_DEF_T *b = &prg->bores[m];
+                            int side = b->side;
+                            bool av = b->av;
+                            double x = b->x;
+                            double y = b->y;
+                            double *asp = NULL;
 
                             printf("### bore: side=%d, dia=%f, x=%f, y=%f, dp=%f, ac=%d, as=%f, av=%d, m=%d\n",
                                    b->side, b->dia, b->x, b->y, b->dp, b->ac, b->as, b->av, b->m);
-
-                            DRILL_T dr = {0};
 
                             dr.d = b->dia;
                             dr.depth = b->dp;
@@ -560,84 +564,94 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                                 continue;
                             }
 
-                            /*
-                                TODO: use o->turn
-                                0 - 0 degrees
-                                1 - 90 degrees
-                                ...
-                            */
-
-                            switch (b->side)
+                            for (int i = 0; i < o->turn; i++)
                             {
-                                case 0:
-                                    dr.side = o->side ? SIDE_BACK : SIDE_FRONT;
-                                    dr.x = o->mirHor ? b->x : prg->dx - b->x;
-                                    dr.y = o->mirVert ? b->y : prg->dy - b->y;
-                                    break;
+                                printf("TODO: Turn operation by 90 deg.\n");
 
-                                case 1:
-                                    dr.side = SIDE_RIGHT;
-                                    if (b->m)
-                                    {
-                                        dr.x = prg->dz/2;
-                                    }
-                                    dr.y = o->mirVert ? b->y : prg->dy - b->y;
-                                    break;
-
-                                case 2:
-                                    dr.side = SIDE_TOP;
-                                    if (b->m)
-                                    {
-                                        dr.y = prg->dz/2;
-                                    }
-                                    dr.x = o->mirHor ? b->x : prg->dx - b->x;
-                                    break;
-
-                                case 3:
-                                    dr.side = SIDE_LEFT;
-                                    if (b->m)
-                                    {
-                                        dr.x = prg->dz/2;
-                                    }
-                                    dr.y = o->mirVert ? b->y : prg->dy - b->y;
-                                    break;
-
-                                case 4: //not used
-                                    dr.side = o->side ?  SIDE_FRONT : SIDE_BACK;
-                                    dr.x = o->mirHor ? b->x : prg->dx - b->x;
-                                    dr.y = o->mirVert ? b->y : prg->dy - b->y;
-                                    break;
-
-                                case 5:
-                                    dr.side = SIDE_BOTTOM;
-                                    dr.x = o->mirHor ? b->x : prg->dx - b->x;
-                                    if (b->m)
-                                    {
-                                        dr.y = prg->dz/2;
-                                    }
-                                    break;
-
-                                default:
-                                    printf("### Invalid side %d, skip item\n", b->side);
                             }
 
-                            if (((dr.side == SIDE_FRONT) || (dr.side == SIDE_BACK))
-                                    && (dr.depth > d->thickness))
+                            for (int i = 0; (i < b->ac); i++)
                             {
-                                dr.tdepth = d->thickness;
-                            }
+                                switch (side)
+                                {
+                                    case 0:
+                                        dr.side = o->side ? SIDE_BACK : SIDE_FRONT;
+                                        dr.x = o->mirHor ? x : prg->dx - x;
+                                        dr.y = o->mirVert ? y : prg->dy - y;
+                                        asp = av ? &y : &x;
+                                        break;
+
+                                    case 1:
+                                        dr.side = SIDE_RIGHT;
+                                        if (b->m)
+                                        {
+                                            dr.x = prg->dz/2;
+                                        }
+                                        dr.y = o->mirVert ? y : prg->dy - y;
+                                        asp = av ? &x : &y;
+                                        break;
+
+                                    case 2:
+                                        dr.side = SIDE_TOP;
+                                        if (b->m)
+                                        {
+                                            dr.y = prg->dz/2;
+                                        }
+                                        dr.x = o->mirHor ? x : prg->dx - x;
+                                        asp = av ? &x : &y;
+                                        break;
+
+                                    case 3:
+                                        dr.side = SIDE_LEFT;
+                                        if (b->m)
+                                        {
+                                            dr.x = prg->dz/2;
+                                        }
+                                        dr.y = o->mirVert ? y : prg->dy - y;
+                                        asp = av ? &x : &y;
+                                        break;
+
+                                    case 4: //not used
+                                        dr.side = o->side ?  SIDE_FRONT : SIDE_BACK;
+                                        dr.x = o->mirHor ? x : prg->dx - x;
+                                        dr.y = o->mirVert ? y : prg->dy - y;
+                                        asp = av ? &x : &y;
+                                        break;
+
+                                    case 5:
+                                        dr.side = SIDE_BOTTOM;
+                                        dr.x = o->mirHor ? x : prg->dx - x;
+                                        if (b->m)
+                                        {
+                                            dr.y = prg->dz/2;
+                                        }
+                                        asp = av ? &x : &y;
+                                        break;
+
+                                    default:
+                                        printf("### Invalid side %d, skip item\n", side);
+                                }
+
+                                if (((dr.side == SIDE_FRONT) || (dr.side == SIDE_BACK))
+                                        && (dr.depth > d->thickness))
+                                {
+                                    dr.tdepth = d->thickness;
+                                }
 
 
-#if 1
-                            //for (int i = 0; i < b->ac ; i++)
-                            {
                                 printf("### drill: side=%d, d=%f, x=%f, y=%f, depth=%f, tdepth=%f\n",
                                        dr.side, dr.d, dr.x, dr.y, dr.depth, dr.tdepth);
 
                                 _detail_add_drill(entities, sides[dr.side][0], normals[dr.side], &dr);
                                 drill_append(&dr, d->amount);
+
+                                if (!asp)
+                                {
+                                    break;
+                                }
+
+                                *asp += b->as;
                             }
-#endif
                         }
                     }
                 }
