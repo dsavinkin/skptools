@@ -29,7 +29,7 @@
             ws = ws.replace(pos, 2, dz);                \
         }                                               \
         while ((pos = ws.find(L"tool.dia")) != -1) {    \
-            ws = ws.replace(pos, 2, tool_dia);          \
+            ws = ws.replace(pos, 8, tool_dia);          \
         }                                               \
         n = calc(ws.c_str());                           \
     }
@@ -885,7 +885,6 @@ int parse_xml_program(const wchar_t* xmlstr, OPERATION_DEF_T *operation/* in_out
 
         wprintf(L" - mill %d: type=%d, name=%s, dia=%f, x=%f, y=%f, dp=%f, sxy=%f, fwd=%d, c=%d\n",
                 i, m->type, m->name, m->dia, m->x, m->y, m->dp, m->sxy, m->fwd, m->c);
-
     }
 
     hr = S_OK;

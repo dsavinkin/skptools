@@ -57,6 +57,19 @@ typedef struct {
     SUMaterialRef mref;
 } SUMATERIAL_T;
 
+
+typedef struct {
+    double d;
+    double x;
+    double y;
+    double depth;
+    double tdepth; //through
+    double sxy;
+    int side;
+    int c;
+    bool fwd;
+} MILL_T;
+
 /***************************************************************/
 /*                     Local Variables                         */
 /***************************************************************/
@@ -147,6 +160,51 @@ static void _add_face(SUEntitiesRef entities, SUPoint3D *vertices, size_t num_ve
     SU_CALL(SUEntitiesAddFaces(entities, 1, &face));
 }
 
+typedef struct {
+    double x;
+    double y;
+    double depth;
+} POINT_T;
+
+static void _detail_add_edge(SUEntitiesRef entities, SUPoint3D corner, SUVector3D normal, const POINT_T *p1, const POINT_T *p2)
+{
+    SUPoint3D start_point = {MM2INCH(corner.x), MM2INCH(corner.y), MM2INCH(corner.z)};
+    SUPoint3D end_point = {MM2INCH(corner.x), MM2INCH(corner.y), MM2INCH(corner.z)};
+
+    double X1 = MM2INCH(p1->x);
+    double Y1 = MM2INCH(p1->y);
+    double D1 = MM2INCH(p1->depth);
+    double X2 = MM2INCH(p2->x);
+    double Y2 = MM2INCH(p2->y);
+    double D2 = MM2INCH(p2->depth);
+
+    start_point.y += Y1;
+    end_point.y   += Y2;
+    start_point.x += X1;
+    end_point.x   += X2;
+
+    SUEdgeRef edge = SU_INVALID;
+    SU_CALL(SUEdgeCreate(&edge, &start_point, &end_point));
+
+    // Add the Edge to the entities
+    SU_CALL(SUEntitiesAddEdges(entities, 1, &edge));
+
+    edge = SU_INVALID;
+
+    start_point.x += normal.x*D1;
+    start_point.y += normal.y*D1;
+    start_point.z += normal.z*D1;
+
+    end_point.x += normal.x*D2;
+    end_point.y += normal.y*D2;
+    end_point.z += normal.z*D2;
+
+    SU_CALL(SUEdgeCreate(&edge, &start_point, &end_point));
+
+    // Add the Edge to the entities
+    SU_CALL(SUEntitiesAddEdges(entities, 1, &edge));
+}
+
 static void _detail_add_drill(SUEntitiesRef entities, SUPoint3D corner, SUVector3D normal, const DRILL_T *dr)
 {
     SUPoint3D center = {MM2INCH(corner.x), MM2INCH(corner.y), MM2INCH(corner.z)};
@@ -218,6 +276,50 @@ static void _detail_add_drill(SUEntitiesRef entities, SUPoint3D corner, SUVector
 
     // Add the Edge to the entities
     SU_CALL(SUEntitiesAddEdges(entities, 1, &edge));
+}
+
+static void _do_turn(int turn, int *side, double *x, double *y, double *dx, double *dy)
+{
+    for (int i = 0; i < turn; i++)
+    {
+        double tmp;
+
+        tmp = *x;
+        *x = *y;
+        *y = *dx - tmp;
+
+        tmp = *dx;
+        *dx = *dy;
+        *dy = tmp;
+
+        switch (*side)
+        {
+            case 0:
+                break;
+
+            case 1:
+                *side = 5;
+                break;
+
+            case 2:
+                *side = 1;
+                break;
+
+            case 3:
+                *side = 2;
+                break;
+
+            case 4:
+                break;
+
+            case 5:
+                *side = 3;
+                break;
+        }
+
+        printf("### turn: side=%d, x=%f, y=%f, dx=%f, dy=%f\n",
+               *side, *x, *y, *dx, *dy);
+    }
 }
 
 /* (points [*num_points-1]) contains current corner point */
@@ -351,7 +453,6 @@ static int _corner_operation(SUPoint3D points[12], int *band_materials, size_t *
 
     return 0;
 }
-
 static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
 {
     //End coordinates of detail in INCHES
@@ -544,10 +645,10 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                         printf("### tools: %d, bores: %d, mills: %d, dx=%f, dy=%f, dz=%f\n",
                                prg->tools_cnt, prg->bores_cnt, prg->mills_cnt, prg->dx, prg->dy, prg->dz);
 
-                        for (int m = 0; m < prg->bores_cnt; m++)
+                        for (int n = 0; n < prg->bores_cnt; n++)
                         {
                             DRILL_T dr = {0};
-                            BORE_DEF_T *b = &prg->bores[m];
+                            BORE_DEF_T *b = &prg->bores[n];
                             int side = b->side;
                             bool av = b->av;
                             double x = b->x;
@@ -570,46 +671,13 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                                 continue;
                             }
 
-                            for (int i = 0; i < o->turn; i++)
+                            if (dr.d == 0)
                             {
-                                double tmp;
-
-                                tmp = x;
-                                x = y;
-                                y = dx - tmp;
-
-                                tmp = dx;
-                                dx = dy;
-                                dy = tmp;
-
-                                switch (side)
-                                {
-                                    case 0:
-                                        break;
-
-                                    case 1:
-                                        side = 5;
-                                        break;
-
-                                    case 2:
-                                        side = 1;
-                                        break;
-
-                                    case 3:
-                                        side = 2;
-                                        break;
-
-                                    case 4:
-                                        break;
-
-                                    case 5:
-                                        side = 3;
-                                        break;
-                                }
-
-                                printf("### turn: side=%d, x=%f, y=%f, dx=%f, dy=%f\n",
-                                       side, x, y, dx, dy);
+                                printf("### Zero diameter, skip item\n");
+                                continue;
                             }
+
+                            _do_turn(o->turn, &side, &x, &y, &dx, &dy);
 
                             for (int i = 0; (i < b->ac); i++)
                             {
@@ -693,40 +761,114 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                                 *asp += b->as;
                             }
                         }
+
+                        MILL_T ml = {0};
+                        POINT_T prev_point = {0};
+
+                        for (int n = 0; n < prg->mills_cnt; n++)
+                        {
+                            MILL_DEF_T *m = &prg->mills[n];
+                            POINT_T point = {0,0};
+                            int side = 0;
+                            //bool av = b->av;
+                            double x = m->x;
+                            double y = m->y;
+                            //double *asp = NULL;
+                            double dx = prg->dx;
+                            double dy = prg->dy;
+                            double dz = prg->dz;
+
+                            wprintf(L"### mill: type=%d, dia=%f, x=%f, y=%f, dp=%f, sxy=%f, fwd=%d, c=%d\n",
+                                    m->type, m->dia, m->x, m->y, m->dp, m->sxy, m->fwd, m->c);
+
+                            if (m->type == MILL_MS)
+                            {
+                                memset(&ml, 0, sizeof(ml));
+                                memset(&prev_point, 0, sizeof(prev_point));
+                                ml.d = m->dia;
+                                ml.sxy = m->sxy;
+                                ml.fwd = m->fwd;
+                                ml.c = m->c;
+                            }
+
+                            ml.depth = m->dp;
+                            ml.tdepth = 0;
+
+                            if (ml.depth == 0)
+                            {
+                                printf("### Zero depth, skip item\n");
+                                continue;
+                            }
+
+                            if (ml.d == 0)
+                            {
+                                printf("### Zero diameter, skip item\n");
+                                continue;
+                            }
+
+                            _do_turn(o->turn, &side, &x, &y, &dx, &dy);
+
+                            double cx = x;
+                            double cy = y;
+
+                            switch (ml.c)
+                            {
+                                case PATH_CENTER:
+                                    break;
+
+                                case PATH_RIGHT:
+                                    cy -= ml.sxy;
+                                    break;
+
+                                case PATH_LEFT:
+                                    cy += ml.sxy;
+                                    break;
+                            }
+
+                            ml.side = o->side ? SIDE_BACK : SIDE_FRONT;
+                            ml.x = o->mirHor ? x : dx - x;
+                            ml.y = o->mirVert ? y : dy - y;
+
+                            printf("### point: side=%d, d=%f, x=%f, y=%f, depth=%f, tdepth=%f, fwd=%d, c=%d\n",
+                                   ml.side, ml.d, ml.x, ml.y, ml.depth, ml.tdepth, ml.fwd, ml.c);
+
+                            {
+                                //Add drill as reference to mill path
+                                DRILL_T dr;
+                                dr.side = ml.side;
+                                dr.d = ml.d;
+                                dr.x = o->mirHor ? cx : dx - cx;
+                                dr.y = o->mirVert ? cy : dy - cy;
+                                dr.depth = ml.depth;
+                                dr.tdepth = ml.tdepth;
+
+                                _detail_add_drill(entities, sides[dr.side][0], normals[dr.side], &dr);
+                                //drill_append(&dr, d->amount);
+                            }
+
+
+                            point.x = ml.x;
+                            point.y = ml.y;
+                            point.depth = ml.tdepth > 0 ? ml.tdepth : ml.depth;
+
+                            if (m->type != MILL_MS)
+                            {
+                                // actually this is MILL_ML
+                                // but use it for all types but MILL_MS
+
+                                printf("### edge: side=%d, x1=%f, y1=%f, depth1=%f, x2=%f, y2=%f, depth2=%f\n",
+                                       ml.side, prev_point.x, prev_point.y, prev_point.depth, point.x, point.y, point.depth);
+
+                                _detail_add_edge(entities, sides[ml.side][0], normals[ml.side], &prev_point, &point);
+                            }
+
+                            prev_point = point;
+                        }
                     }
                 }
             }
         }
     }
-
-#if 0
-    for (int i = 0; i < 6; ++i)
-    {
-        for (size_t j = 0; j < d->operations_cnt; j++)
-        {
-            OPERATION_T *op = &d->operations[j];
-            if ((op->type == TYPE_DRILLING) && (op->side == i+1))
-            {
-                DRILL_T dr;
-                dr.d = op->d;
-                dr.x = op->x;
-                dr.y = op->y;
-                dr.depth = op->depth;
-                dr.tdepth = 0;
-                dr.side = i;
-
-                if (((i == SIDE_FRONT) || (i == SIDE_BACK))
-                        && (dr.depth > d->thickness))
-                {
-                    dr.tdepth = d->thickness;
-                }
-
-                _detail_add_drill(entities, sides[i][0], normals[i], &dr);
-                drill_append(&dr, d->amount);
-            }
-        }
-    }
-#endif
 
     return 0;
 }

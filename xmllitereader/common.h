@@ -42,6 +42,10 @@
 #define EDGE_COVER_H        1
 #define EDGE_COVER_V        2
 
+#define PATH_CENTER         0
+#define PATH_LEFT           1
+#define PATH_RIGHT          2
+
 /***************************************************************/
 /*                       Global Types                          */
 /***************************************************************/
