@@ -60,6 +60,7 @@ static OPERATION_DEF_T *current_operation = NULL;
 
 static BORE_DEF_T *current_bore = NULL;
 static TOOL_DEF_T *current_tool = NULL;
+static MILL_DEF_T *current_mill = NULL;
 
 static TOOL_DEF_T *_get_program_tool(PROGRAM_DEF_T *prg, wchar_t *name)
 {
@@ -70,8 +71,12 @@ static TOOL_DEF_T *_get_program_tool(PROGRAM_DEF_T *prg, wchar_t *name)
 
     if (name == NULL)
     {
+#if 1
+        return NULL;
+#else
         //return the lastest
         return &prg->tools[prg->tools_cnt-1];
+#endif
     }
 
     for (int i = 0; i < prg->tools_cnt; i++)
@@ -150,6 +155,28 @@ static BORE_DEF_T *_add_program_bore(PROGRAM_DEF_T *prg, int side)
     return b;
 }
 
+static MILL_DEF_T *_add_program_mill(PROGRAM_DEF_T *prg, MILL_TYPE_T type)
+{
+    if (prg == NULL)
+    {
+        return NULL;
+    }
+
+    prg->mills_cnt++;
+    prg->mills = (MILL_DEF_T*)realloc(prg->mills, sizeof(MILL_DEF_T)*prg->mills_cnt);
+    if (prg->mills == NULL)
+    {
+        return NULL;
+    }
+
+    MILL_DEF_T *m = &prg->mills[prg->mills_cnt-1];
+
+    memset(m, 0, sizeof(MILL_DEF_T));
+    m->type = type;
+
+    return m;
+}
+
 static HRESULT _element_start(const WCHAR* ElementName, void *data)
 {
     wprintf(L"S %d %d: Element start (%p) <%s ...\n", _state, _state, data, ElementName);
@@ -222,9 +249,16 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
             }
             else if (wcscmp(ElementName, L"ms") == 0)
             {
-                //_add_mill();
+                current_mill = _add_program_mill(prg, MILL_MS);
             }
-
+            else if (wcscmp(ElementName, L"ml") == 0)
+            {
+                current_mill = _add_program_mill(prg, MILL_ML);
+            }
+            else if (wcscmp(ElementName, L"ma3p") == 0)
+            {
+                current_mill = _add_program_mill(prg, MILL_MA3P);
+            }
             break;
         }
 
@@ -262,6 +296,12 @@ static HRESULT _element_end(const WCHAR* ElementName, void *data)
             {
                 current_bore = NULL;
             }
+            else if ((wcscmp(ElementName, L"ms") == 0) ||
+                     (wcscmp(ElementName, L"ml") == 0) ||
+                     (wcscmp(ElementName, L"ma3p") == 0))
+            {
+                current_mill = NULL;
+            }
             break;
 
         default:
@@ -291,6 +331,11 @@ static HRESULT _parse_project(const WCHAR* ElementName,
 
 static HRESULT _parse_boolean(bool *ret, const WCHAR* Value)
 {
+    if (ret == NULL)
+    {
+        PARSE_FAIL(E_ABORT);
+    }
+
     if (wcscmp(Value, L"true") == 0)
     {
         *ret = true;
@@ -309,6 +354,11 @@ static HRESULT _parse_boolean(bool *ret, const WCHAR* Value)
 
 static HRESULT _parse_bore(BORE_DEF_T *b, const WCHAR* LocalName, const WCHAR* Value)
 {
+    if (b == NULL)
+    {
+        PARSE_FAIL(E_ABORT);
+    }
+
     if (wcscmp(LocalName, L"name") == 0)
     {
         b->name = _wcsdup(Value);
@@ -355,6 +405,60 @@ static HRESULT _parse_bore(BORE_DEF_T *b, const WCHAR* LocalName, const WCHAR* V
     else if (wcscmp(LocalName, L"m") == 0)
     {
         if (_parse_boolean(&b->m, Value) != S_OK)
+        {
+            PARSE_FAIL(E_ABORT);
+        }
+    }
+
+    return S_OK;
+}
+
+static HRESULT _parse_mill(MILL_DEF_T *m, const WCHAR* LocalName, const WCHAR* Value)
+{
+    if (m == NULL)
+    {
+        PARSE_FAIL(E_ABORT);
+    }
+
+    if (wcscmp(LocalName, L"name") == 0)
+    {
+        m->name = _wcsdup(Value);
+    }
+    else if (wcscmp(LocalName, L"x") == 0)
+    {
+        m->str_x = _wcsdup(Value);
+    }
+    else if (wcscmp(LocalName, L"y") == 0)
+    {
+        m->str_y = _wcsdup(Value);
+    }
+    else if (wcscmp(LocalName, L"dp") == 0)
+    {
+        m->str_dp = _wcsdup(Value);
+    }
+    else if (wcscmp(LocalName, L"in") == 0)
+    {
+        m->str_in = _wcsdup(Value);
+    }
+    else if (wcscmp(LocalName, L"out") == 0)
+    {
+        m->str_out = _wcsdup(Value);
+    }
+    else if (wcscmp(LocalName, L"sxy") == 0)
+    {
+        m->str_sxy = _wcsdup(Value);
+    }
+    else if (wcscmp(LocalName, L"fwd") == 0)
+    {
+        if (_parse_boolean(&m->fwd, Value) != S_OK)
+        {
+            PARSE_FAIL(E_ABORT);
+        }
+    }
+    else if (wcscmp(LocalName, L"c") == 0)
+    {
+        m->c = _wtol(Value);
+        if (errno)
         {
             PARSE_FAIL(E_ABORT);
         }
@@ -438,13 +542,14 @@ static HRESULT _parse_program(const WCHAR* ElementName,
             PARSE_FAIL(E_ABORT);
         }
     }
-    else if (wcscmp(ElementName, L"ms") == 0)
+    else if ((wcscmp(ElementName, L"ms") == 0) ||
+             (wcscmp(ElementName, L"ml") == 0) ||
+             (wcscmp(ElementName, L"ma3p") == 0))
     {
-        //<ms x="0" y="2" dp="10" in="0" out="0" sxy="tool.dia/2" fwd="true" c="2" name="mill8"/>
-    }
-    else if (wcscmp(ElementName, L"ml") == 0)
-    {
-        //<ml x="dx" y="3" dp="10"/>
+        if (_parse_mill(current_mill, LocalName, Value) != S_OK)
+        {
+            PARSE_FAIL(E_ABORT);
+        }
     }
     else
     {
@@ -775,8 +880,12 @@ int parse_xml_program(const wchar_t* xmlstr, OPERATION_DEF_T *operation/* in_out
         CALCULATE_EXPR(m->y, m->str_y);
         CALCULATE_EXPR(m->dp, m->str_dp);
         CALCULATE_EXPR(m->sxy, m->str_sxy);
+        CALCULATE_EXPR(m->in, m->str_in);
+        CALCULATE_EXPR(m->out, m->str_out);
 
-        wprintf(L" - mill %d: name=%s, dia=%f, x=%f, y=%f, dp=%f, sxy=%f\n", i, m->name, m->dia, m->x, m->y, m->dp, m->sxy);
+        wprintf(L" - mill %d: type=%d, name=%s, dia=%f, x=%f, y=%f, dp=%f, sxy=%f, fwd=%d, c=%d\n",
+                i, m->type, m->name, m->dia, m->x, m->y, m->dp, m->sxy, m->fwd, m->c);
+
     }
 
     hr = S_OK;

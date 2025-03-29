@@ -76,23 +76,30 @@ typedef struct {
     bool m;
 } BORE_DEF_T;
 
+typedef enum {
+    MILL_MS,
+    MILL_ML,
+    MILL_MA3P
+} MILL_TYPE_T;
+
 typedef struct {
-    //<ms x="0" y="2" dp="10" in="0" out="0" sxy="tool.dia/2" fwd="true" c="2" name="mill8"/>
+    MILL_TYPE_T type;
     wchar_t *str_x;
     wchar_t *str_y;
     wchar_t *str_dp;
+    wchar_t *str_in;
+    wchar_t *str_out;
     wchar_t *str_sxy;
     double x;
     double y;
     double dp;
+    double in;
+    double out;
     double sxy;
     double dia;
     bool fwd;
     int c;
     wchar_t *name;
-
-    //TODO: add array of trajectories
-    //<ml x="dx" y="3" dp="10"/>
 } MILL_DEF_T;
 
 typedef struct {
