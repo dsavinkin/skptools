@@ -627,6 +627,14 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
 
     _add_face(entities, sheet_points, num_sheet_points, material);
 
+    if (d->txt)
+    {
+#ifdef TODO
+        _add_txt(entities, sides[SIDE_FRONT]);
+        _add_txt(entities, sides[SIDE_BACK]);
+#endif
+    }
+
     for (int j = 0; j < project.operations_cnt; j++)
     {
         OPERATION_DEF_T *o = &project.operations[j];
@@ -691,7 +699,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                                         break;
 
                                     case 1:
-                                        dr.side = SIDE_RIGHT;
+                                        dr.side = o->mirHor ? SIDE_RIGHT : SIDE_LEFT;
                                         if (b->m)
                                         {
                                             dr.x = dz/2;
@@ -701,7 +709,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                                         break;
 
                                     case 2:
-                                        dr.side = SIDE_BOTTOM;
+                                        dr.side = o->mirVert ? SIDE_BOTTOM : SIDE_TOP;
                                         dr.x = o->mirHor ? dx - x : x;
                                         if (b->m)
                                         {
@@ -711,7 +719,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                                         break;
 
                                     case 3:
-                                        dr.side = SIDE_LEFT;
+                                        dr.side = o->mirHor ? SIDE_LEFT : SIDE_RIGHT;
                                         if (b->m)
                                         {
                                             dr.x = dz/2;
@@ -728,7 +736,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                                         break;
 
                                     case 5:
-                                        dr.side = SIDE_TOP;
+                                        dr.side = o->mirVert ? SIDE_TOP : SIDE_BOTTOM;
                                         if (b->m)
                                         {
                                             dr.y = dz/2;
