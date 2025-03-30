@@ -832,6 +832,7 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                             printf("### point: side=%d, d=%f, x=%f, y=%f, depth=%f, tdepth=%f, fwd=%d, c=%d\n",
                                    ml.side, ml.d, ml.x, ml.y, ml.depth, ml.tdepth, ml.fwd, ml.c);
 
+                            if (0)
                             {
                                 //Add drill as reference to mill path
                                 DRILL_T dr;

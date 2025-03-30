@@ -35,6 +35,7 @@ double calc(const wchar_t *str)
         return 0.0;
     }
 
+    //wprintf(L"calc %s\n", str);
     input_str = str;
 
     return expr();
