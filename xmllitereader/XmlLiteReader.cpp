@@ -684,8 +684,8 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                                 switch (side)
                                 {
                                     case 0:
-                                        dr.side = o->side ? SIDE_BACK : SIDE_FRONT;
-                                        dr.x = o->mirHor ? x : dx - x;
+                                        dr.side = o->side ? SIDE_FRONT : SIDE_BACK;
+                                        dr.x = o->mirHor ? dx - x : x;
                                         dr.y = o->mirVert ? y : dy - y;
                                         asp = av ? &y : &x;
                                         break;
@@ -701,12 +701,12 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                                         break;
 
                                     case 2:
-                                        dr.side = SIDE_TOP;
+                                        dr.side = SIDE_BOTTOM;
+                                        dr.x = o->mirHor ? dx - x : x;
                                         if (b->m)
                                         {
                                             dr.y = dz/2;
                                         }
-                                        dr.x = o->mirHor ? x : dx - x;
                                         asp = av ? &x : &y;
                                         break;
 
@@ -721,19 +721,19 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                                         break;
 
                                     case 4: //not used
-                                        dr.side = o->side ?  SIDE_FRONT : SIDE_BACK;
+                                        dr.side = o->side ?  SIDE_BACK : SIDE_FRONT;
                                         dr.x = o->mirHor ? x : dx - x;
                                         dr.y = o->mirVert ? y : dy - y;
                                         asp = av ? &x : &y;
                                         break;
 
                                     case 5:
-                                        dr.side = SIDE_BOTTOM;
-                                        dr.x = o->mirHor ? x : dx - x;
+                                        dr.side = SIDE_TOP;
                                         if (b->m)
                                         {
                                             dr.y = dz/2;
                                         }
+                                        dr.x = o->mirHor ? dx - x : x;
                                         asp = av ? &x : &y;
                                         break;
 
@@ -825,8 +825,8 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
                                     break;
                             }
 
-                            ml.side = o->side ? SIDE_BACK : SIDE_FRONT;
-                            ml.x = o->mirHor ? x : dx - x;
+                            ml.side = o->side ? SIDE_FRONT : SIDE_BACK;
+                            ml.x = o->mirHor ? dx - x : x;
                             ml.y = o->mirVert ? y : dy - y;
 
                             printf("### point: side=%d, d=%f, x=%f, y=%f, depth=%f, tdepth=%f, fwd=%d, c=%d\n",
