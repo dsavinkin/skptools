@@ -160,6 +160,34 @@ static void _add_face(SUEntitiesRef entities, SUPoint3D *vertices, size_t num_ve
     SU_CALL(SUEntitiesAddFaces(entities, 1, &face));
 }
 
+static void _add_txt(SUEntitiesRef entities, double x, double y, double z)
+{
+    SUEdgeRef edge = SU_INVALID;
+    SUPoint3D start_point = {MM2INCH(x/3), MM2INCH(y/3), MM2INCH(z)};
+    SUPoint3D end_point = {MM2INCH(x*2/3), MM2INCH(y/3), MM2INCH(z)};
+
+    SU_CALL(SUEdgeCreate(&edge, &start_point, &end_point));
+
+    // Add the Edge to the entities
+    SU_CALL(SUEntitiesAddEdges(entities, 1, &edge));
+
+    edge = SU_INVALID;
+    start_point.y = MM2INCH(y/2);
+    end_point.y = MM2INCH(y/2);
+    SU_CALL(SUEdgeCreate(&edge, &start_point, &end_point));
+
+    // Add the Edge to the entities
+    SU_CALL(SUEntitiesAddEdges(entities, 1, &edge));
+
+    edge = SU_INVALID;
+    start_point.y = MM2INCH(y*2/3);
+    end_point.y = MM2INCH(y*2/3);
+    SU_CALL(SUEdgeCreate(&edge, &start_point, &end_point));
+
+    // Add the Edge to the entities
+    SU_CALL(SUEntitiesAddEdges(entities, 1, &edge));
+}
+
 typedef struct {
     double x;
     double y;
@@ -629,10 +657,8 @@ static int _create_detail_component(SUEntitiesRef entities, DETAIL_DEF_T *d)
 
     if (d->txt)
     {
-#ifdef TODO
-        _add_txt(entities, sides[SIDE_FRONT]);
-        _add_txt(entities, sides[SIDE_BACK]);
-#endif
+        _add_txt(entities, X, Y, Z);
+        _add_txt(entities, X, Y, 0);
     }
 
     for (int j = 0; j < project.operations_cnt; j++)
