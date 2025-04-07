@@ -297,7 +297,9 @@ static HRESULT _parse_boolean(bool *ret, const WCHAR* Value)
 
 static HRESULT _element_start(const WCHAR* ElementName, void *data)
 {
+#ifdef LOG_XML_PARSER
     wprintf(L"S %d %d: Element start (%p) <%s ...\n", _state, _good_state, data, ElementName);
+#endif
 
     switch (_state)
     {
@@ -457,7 +459,9 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
 
 static HRESULT _element_end(const WCHAR* ElementName, void *data)
 {
+#ifdef LOG_XML_PARSER
     wprintf(L"E %d %d: End element </%s> (%p)\n", _state, _good_state, ElementName, data);
+#endif
 
     switch (_state)
     {
@@ -1210,7 +1214,9 @@ static HRESULT _parse_element(const WCHAR* ElementName,
                               const WCHAR* Value,
                               void *data)
 {
+#ifdef LOG_XML_PARSER
     wprintf(L"P %d %d Element parse: <%s %s=\"%s\"> (%p)\n", _state, _good_state, ElementName, LocalName, Value, data);
+#endif
 
     switch (_state)
     {

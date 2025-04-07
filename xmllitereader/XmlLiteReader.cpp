@@ -1028,7 +1028,7 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
             // Erase all faces from component
             SU_CALL(SUEntitiesErase(instance_entities, faceCount, &elements[0]));
 
-            SU_CALL(SUEntitiesGetNumFaces(instance_entities, &faceCount));
+//            SU_CALL(SUEntitiesGetNumFaces(instance_entities, &faceCount));
         }
 
         size_t edgeCount = 0;
@@ -1111,10 +1111,10 @@ static void _add_update_detail_components(SUModelRef model, DETAIL_DEF_T *detail
             _last_detail_position_Y += DISTANCE_Y + detail_def->height;
         }
 
-        SU_CALL(SUComponentInstanceSetTransform(instance, &transform));
-        SU_CALL(SUEntitiesAddInstance(entities, instance, NULL));
+        //SU_CALL(SUComponentInstanceSetTransform(instance, &transform));
+        //SU_CALL(SUEntitiesAddInstance(entities, instance, NULL));
 
-        for (size_t i = componentNumInstancesCount+1; i < detail_def->amount; i++)
+        for (size_t i = componentNumInstancesCount; i < detail_def->amount; i++)
         {
             transform.values[14] = MM2INCH(i*detail_def->thickness * DISTANCE_Z);
 

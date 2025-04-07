@@ -4,6 +4,8 @@
 /*                     Global Definitions                      */
 /***************************************************************/
 
+#define LOG_XML_PARSER
+
 #ifndef MAX
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
 #endif
