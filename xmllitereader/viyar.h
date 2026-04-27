@@ -79,6 +79,8 @@ typedef struct {
 typedef enum {
     MILL_MS,
     MILL_ML,
+	MILL_MR,
+	MILL_ME,
     MILL_MA3P
 } MILL_TYPE_T;
 

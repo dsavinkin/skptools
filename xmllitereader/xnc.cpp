@@ -257,6 +257,14 @@ static HRESULT _element_start(const WCHAR* ElementName, void *data)
             {
                 current_mill = _add_program_mill(prg, MILL_ML);
             }
+            else if (wcscmp(ElementName, L"mr") == 0)
+            {
+                current_mill = _add_program_mill(prg, MILL_MR);
+            }
+            else if (wcscmp(ElementName, L"me") == 0)
+            {
+                current_mill = _add_program_mill(prg, MILL_ME);
+            }
             else if (wcscmp(ElementName, L"ma3p") == 0)
             {
                 current_mill = _add_program_mill(prg, MILL_MA3P);
@@ -302,6 +310,8 @@ static HRESULT _element_end(const WCHAR* ElementName, void *data)
             }
             else if ((wcscmp(ElementName, L"ms") == 0) ||
                      (wcscmp(ElementName, L"ml") == 0) ||
+                     (wcscmp(ElementName, L"mr") == 0) ||
+                     (wcscmp(ElementName, L"me") == 0) ||
                      (wcscmp(ElementName, L"ma3p") == 0))
             {
                 current_mill = NULL;
@@ -548,6 +558,8 @@ static HRESULT _parse_program(const WCHAR* ElementName,
     }
     else if ((wcscmp(ElementName, L"ms") == 0) ||
              (wcscmp(ElementName, L"ml") == 0) ||
+             (wcscmp(ElementName, L"mr") == 0) ||
+             (wcscmp(ElementName, L"me") == 0) ||
              (wcscmp(ElementName, L"ma3p") == 0))
     {
         if (_parse_mill(current_mill, LocalName, Value) != S_OK)
